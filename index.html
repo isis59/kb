@@ -155,7 +155,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add Variable</h5>
+                    <h5 class="modal-title" id="variableModalLabel">Add Variable</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -186,7 +186,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Add Conditional Content</h5>
+                    <h5 class="modal-title" id="checkboxModalLabel">Add Conditional Content</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -212,23 +212,61 @@
         </div>
     </div>
 
+    <!-- Global Checkbox Library Modal -->
+    <div class="modal fade" id="globalCheckboxModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Checkbox Library</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#libraryTab" data-bs-toggle="tab">Add from Library</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#saveTab" data-bs-toggle="tab">Save to Library</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="libraryTab">
+                            <div id="globalCheckboxList"><!-- Available checkboxes --></div>
+                        </div>
+                        <div class="tab-pane fade" id="saveTab">
+                            <div class="mb-3">
+                                <label class="form-label">Checkbox Label</label>
+                                <input type="text" id="globalCheckboxLabel" class="form-control" placeholder="e.g., Add disclaimer">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Content to insert when checked</label>
+                                <textarea id="globalCheckboxContent" class="form-control" rows="3" placeholder="e.g., This is a disclaimer..."></textarea>
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" id="saveGlobalCheckboxBtn">Save to Library</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Button Config Modal -->
     <div class="modal fade" id="buttonConfigModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Configure Button</h5>
+                    <h5 class="modal-title" id="buttonModalLabel">Configure Button</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Button Label</label>
-                        <input type="text" id="buttonLabel" class="form-control" placeholder="e.g., Export PDF">
+                        <input type="text" id="buttonLabel" class="form-control" placeholder="e.g., Copy Content">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">JavaScript Code</label>
                         <textarea id="buttonCode" class="form-control" rows="6" placeholder="alert('Hello!');"></textarea>
-                        <small class="text-muted">Available: alert(), console.log(), and all global JS APIs</small>
+                        <small class="text-muted">Available: KB.getContentWithVariables() to get rendered content, alert(), console.log(), and all global JS APIs</small>
                     </div>
                 </div>
                 <div class="modal-footer">

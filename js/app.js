@@ -6,6 +6,10 @@
         articles: {},
         directories: {},
         currentArticle: null,
+        globalVariables: {},
+        globalCheckboxes: {},
+        globalButtons: {},
+        editingItem: null, // Track what's being edited
 
         // Initialize
         init: function() {
@@ -30,14 +34,19 @@
             // Variables
             $(document).on('click', '#addVariableBtn', () => this.openVariableModal());
             $(document).on('click', '#saveVariableBtn', () => this.saveVariable());
+            $(document).on('click', '.edit-variable-btn', (e) => this.editVariable($(e.target).data('name')));
             
             // Checkboxes
             $(document).on('click', '#addCheckboxBtn', () => this.openCheckboxModal());
             $(document).on('click', '#saveCheckboxBtn', () => this.saveCheckbox());
+            $(document).on('click', '.edit-checkbox-btn', (e) => this.editCheckbox($(e.target).data('name')));
+            $(document).on('click', '#addGlobalCheckboxBtn', () => this.openGlobalCheckboxModal());
+            $(document).on('click', '#saveGlobalCheckboxBtn', () => this.saveGlobalCheckbox());
             
             // Buttons
             $(document).on('click', '#addButtonBtn', () => this.openButtonModal());
             $(document).on('click', '#saveButtonBtn', () => this.saveButton());
+            $(document).on('click', '.edit-button-btn', (e) => this.editButton($(e.target).data('id')));
             
             // Viewer interactions
             $(document).on('input', '.viewer-variable', () => this.updatePreview());
@@ -52,7 +61,10 @@
                     const data = JSON.parse(stored);
                     this.articles = data.articles || {};
                     this.directories = data.directories || {};
-                    // Normalize articles to ensure they have all required properties
+                    this.globalVariables = data.globalVariables || {};
+                    this.globalCheckboxes = data.globalCheckboxes || {};
+                    this.globalButtons = data.globalButtons || {};
+                    // Normalize articles
                     Object.values(this.articles).forEach(article => {
                         article.variables = article.variables || [];
                         article.checkboxes = article.checkboxes || [];
@@ -66,7 +78,13 @@
         },
 
         saveStorage: function() {
-            const data = { articles: this.articles, directories: this.directories };
+            const data = { 
+                articles: this.articles, 
+                directories: this.directories,
+                globalVariables: this.globalVariables,
+                globalCheckboxes: this.globalCheckboxes,
+                globalButtons: this.globalButtons
+            };
             localStorage.setItem('kb_data', JSON.stringify(data));
             this.syncServer(data);
         },
@@ -224,9 +242,22 @@
 
         // Variables
         openVariableModal: function() {
-            $('#variableName').val('');
+            this.editingItem = null;
+            $('#variableName').val('').prop('disabled', false);
             $('#variableLabel').val('');
             $('#variablePlaceholder').val('');
+            $('#variableModalLabel').text('Add Variable');
+            new bootstrap.Modal(document.getElementById('variableConfigModal')).show();
+        },
+
+        editVariable: function(name) {
+            const variable = this.currentArticle.variables.find(v => v.name === name);
+            if (!variable) return;
+            this.editingItem = { type: 'variable', name: name };
+            $('#variableName').val(name).prop('disabled', true);
+            $('#variableLabel').val(variable.label);
+            $('#variablePlaceholder').val(variable.placeholder || '');
+            $('#variableModalLabel').text('Edit Variable');
             new bootstrap.Modal(document.getElementById('variableConfigModal')).show();
         },
 
@@ -240,13 +271,22 @@
             
             if (!this.currentArticle) return;
             
-            // Check if exists
-            if (this.currentArticle.variables.some(v => v.name === name)) {
-                alert('Variable already exists');
-                return;
+            if (this.editingItem && this.editingItem.type === 'variable') {
+                // Edit existing
+                const idx = this.currentArticle.variables.findIndex(v => v.name === name);
+                if (idx >= 0) {
+                    this.currentArticle.variables[idx] = { name, label, placeholder, value: this.currentArticle.variables[idx].value };
+                }
+                this.editingItem = null;
+            } else {
+                // Add new
+                if (this.currentArticle.variables.some(v => v.name === name)) {
+                    alert('Variable already exists');
+                    return;
+                }
+                this.currentArticle.variables.push({ name, label, placeholder, value: '' });
             }
             
-            this.currentArticle.variables.push({ name, label, placeholder, value: '' });
             this.saveStorage();
             this.renderEditorVariables();
             bootstrap.Modal.getInstance(document.getElementById('variableConfigModal')).hide();
@@ -266,6 +306,7 @@
                 const tag = $(`
                     <div class="tag">
                         {{${this.escape(v.name)}}}
+                        <button class="edit-variable-btn" type="button" title="Edit" data-name="${this.escape(v.name)}">✎</button>
                         <button class="delete-btn" type="button" title="Delete">×</button>
                     </div>
                 `);
@@ -296,9 +337,22 @@
 
         // Checkboxes
         openCheckboxModal: function() {
-            $('#checkboxName').val('');
+            this.editingItem = null;
+            $('#checkboxName').val('').prop('disabled', false);
             $('#checkboxLabel').val('');
             $('#checkboxContent').val('');
+            $('#checkboxModalLabel').text('Add Checkbox');
+            new bootstrap.Modal(document.getElementById('checkboxConfigModal')).show();
+        },
+
+        editCheckbox: function(name) {
+            const checkbox = this.currentArticle.checkboxes.find(c => c.name === name);
+            if (!checkbox) return;
+            this.editingItem = { type: 'checkbox', name: name };
+            $('#checkboxName').val(name).prop('disabled', true);
+            $('#checkboxLabel').val(checkbox.label);
+            $('#checkboxContent').val(checkbox.content);
+            $('#checkboxModalLabel').text('Edit Checkbox');
             new bootstrap.Modal(document.getElementById('checkboxConfigModal')).show();
         },
 
@@ -313,12 +367,22 @@
             
             if (!this.currentArticle) return;
             
-            if (this.currentArticle.checkboxes.some(c => c.name === name)) {
-                alert('Checkbox already exists');
-                return;
+            if (this.editingItem && this.editingItem.type === 'checkbox') {
+                // Edit existing
+                const idx = this.currentArticle.checkboxes.findIndex(c => c.name === name);
+                if (idx >= 0) {
+                    this.currentArticle.checkboxes[idx] = { name, label, content, checked: this.currentArticle.checkboxes[idx].checked };
+                }
+                this.editingItem = null;
+            } else {
+                // Add new
+                if (this.currentArticle.checkboxes.some(c => c.name === name)) {
+                    alert('Checkbox already exists');
+                    return;
+                }
+                this.currentArticle.checkboxes.push({ name, label, content, checked: false });
             }
             
-            this.currentArticle.checkboxes.push({ name, label, content, checked: false });
             this.saveStorage();
             this.renderEditorCheckboxes();
             bootstrap.Modal.getInstance(document.getElementById('checkboxConfigModal')).hide();
@@ -338,12 +402,60 @@
                 const tag = $(`
                     <div class="tag">
                         {{${this.escape(c.name)}-content}}
+                        <button class="edit-checkbox-btn" type="button" title="Edit" data-name="${this.escape(c.name)}">✎</button>
                         <button class="delete-btn" type="button" title="Delete">×</button>
                     </div>
                 `);
                 tag.find('.delete-btn').on('click', () => this.deleteCheckbox(c.name));
                 container.append(tag);
             });
+            
+            // Add option to add from global
+            if (Object.keys(this.globalCheckboxes).length > 0) {
+                container.append($('<button id="addGlobalCheckboxBtn" class="btn btn-sm btn-secondary mt-2">+ From Library</button>'));
+            }
+        },
+
+        openGlobalCheckboxModal: function() {
+            const list = $('<div class="global-checkbox-list"></div>');
+            Object.entries(this.globalCheckboxes).forEach(([id, cb]) => {
+                const alreadyAdded = this.currentArticle.checkboxes.some(c => c.name === cb.name);
+                const item = $(`
+                    <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: pointer; ${alreadyAdded ? 'background-color: #f0f0f0;' : ''}">
+                        <strong>${this.escape(cb.label)}</strong>
+                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">${this.escape(cb.content.substring(0, 50))}${cb.content.length > 50 ? '...' : ''}</p>
+                        ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
+                    </div>
+                `);
+                if (!alreadyAdded) {
+                    item.on('click', () => {
+                        this.currentArticle.checkboxes.push({ name: cb.name, label: cb.label, content: cb.content, checked: false });
+                        this.saveStorage();
+                        this.renderEditorCheckboxes();
+                        bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
+                    });
+                }
+                list.append(item);
+            });
+            $('#globalCheckboxList').html(list);
+            new bootstrap.Modal(document.getElementById('globalCheckboxModal')).show();
+        },
+
+        saveGlobalCheckbox: function() {
+            const label = $('#globalCheckboxLabel').val().trim();
+            const content = $('#globalCheckboxContent').val().trim();
+            
+            if (!label) { alert('Label required'); return; }
+            if (!content) { alert('Content required'); return; }
+            
+            const id = 'gchk_' + Date.now();
+            this.globalCheckboxes[id] = { label, content, createdAt: new Date().toISOString() };
+            this.saveStorage();
+            
+            $('#globalCheckboxLabel').val('');
+            $('#globalCheckboxContent').val('');
+            bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
+            alert('Checkbox added to library!');
         },
 
         renderViewerCheckboxes: function() {
@@ -407,8 +519,20 @@
 
         // Buttons
         openButtonModal: function() {
+            this.editingItem = null;
             $('#buttonLabel').val('');
             $('#buttonCode').val('');
+            $('#buttonModalLabel').text('Add Button');
+            new bootstrap.Modal(document.getElementById('buttonConfigModal')).show();
+        },
+
+        editButton: function(btnId) {
+            const button = this.currentArticle.buttons.find(b => b.id === btnId);
+            if (!button) return;
+            this.editingItem = { type: 'button', id: btnId };
+            $('#buttonLabel').val(button.label);
+            $('#buttonCode').val(button.code);
+            $('#buttonModalLabel').text('Edit Button');
             new bootstrap.Modal(document.getElementById('buttonConfigModal')).show();
         },
 
@@ -420,7 +544,19 @@
             try { new Function(code); }
             catch (e) { alert('Invalid JS: ' + e.message); return; }
             if (!this.currentArticle) return;
-            this.currentArticle.buttons.push({ id: 'btn_' + Date.now(), label, code });
+            
+            if (this.editingItem && this.editingItem.type === 'button') {
+                // Edit existing
+                const idx = this.currentArticle.buttons.findIndex(b => b.id === this.editingItem.id);
+                if (idx >= 0) {
+                    this.currentArticle.buttons[idx] = { id: this.editingItem.id, label, code };
+                }
+                this.editingItem = null;
+            } else {
+                // Add new
+                this.currentArticle.buttons.push({ id: 'btn_' + Date.now(), label, code });
+            }
+            
             this.saveStorage();
             this.renderEditorButtons();
             bootstrap.Modal.getInstance(document.getElementById('buttonConfigModal')).hide();
@@ -445,6 +581,7 @@
                 const tag = $(`
                     <div class="tag">
                         ${this.escape(btn.label)}
+                        <button class="edit-button-btn" type="button" title="Edit" data-id="${btn.id}">✎</button>
                         <button class="delete-btn" type="button" title="Delete">×</button>
                     </div>
                 `);

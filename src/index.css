@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TipTap Editor Styles */
+.tiptap {
+  @apply prose prose-sm max-w-none focus:outline-none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  @apply text-gray-400;
+  content: attr(data-placeholder);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Editor menu styles */
+.editor-menu {
+  @apply flex flex-wrap gap-2 p-2 bg-gray-100 border border-gray-300 rounded-t-md;
+}
+
+.editor-menu button {
+  @apply px-3 py-2 bg-white border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium;
+}
+
+.editor-menu button.is-active {
+  @apply bg-blue-500 text-white border-blue-500;
+}

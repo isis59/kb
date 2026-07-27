@@ -52,6 +52,12 @@
                     const data = JSON.parse(stored);
                     this.articles = data.articles || {};
                     this.directories = data.directories || {};
+                    // Normalize articles to ensure they have all required properties
+                    Object.values(this.articles).forEach(article => {
+                        article.variables = article.variables || [];
+                        article.checkboxes = article.checkboxes || [];
+                        article.buttons = article.buttons || [];
+                    });
                     console.log('Loaded:', Object.keys(this.articles).length, 'articles');
                 } catch (e) {
                     console.error('Load error:', e);
@@ -363,29 +369,37 @@
             if (!this.currentArticle) return;
             
             // Update variable values
-            this.currentArticle.variables.forEach(v => {
-                v.value = $(`.viewer-variable[data-var="${v.name}"]`).val() || '';
-            });
+            if (this.currentArticle.variables) {
+                this.currentArticle.variables.forEach(v => {
+                    v.value = $(`.viewer-variable[data-var="${v.name}"]`).val() || '';
+                });
+            }
             
             // Update checkbox states
-            this.currentArticle.checkboxes.forEach(c => {
-                c.checked = $(`.viewer-checkbox[data-checkbox="${c.name}"]`).is(':checked');
-            });
+            if (this.currentArticle.checkboxes) {
+                this.currentArticle.checkboxes.forEach(c => {
+                    c.checked = $(`.viewer-checkbox[data-checkbox="${c.name}"]`).is(':checked');
+                });
+            }
             
             // Process content
             let content = this.currentArticle.content;
             
             // Replace variables
-            this.currentArticle.variables.forEach(v => {
-                const regex = new RegExp('{{' + v.name + '}}', 'g');
-                content = content.replace(regex, this.escape(v.value));
-            });
+            if (this.currentArticle.variables) {
+                this.currentArticle.variables.forEach(v => {
+                    const regex = new RegExp('{{' + v.name + '}}', 'g');
+                    content = content.replace(regex, this.escape(v.value));
+                });
+            }
             
             // Replace conditional checkboxes
-            this.currentArticle.checkboxes.forEach(c => {
-                const regex = new RegExp('{{' + c.name + '-content}}', 'g');
-                content = content.replace(regex, c.checked ? this.escape(c.content) : '');
-            });
+            if (this.currentArticle.checkboxes) {
+                this.currentArticle.checkboxes.forEach(c => {
+                    const regex = new RegExp('{{' + c.name + '-content}}', 'g');
+                    content = content.replace(regex, c.checked ? this.escape(c.content) : '');
+                });
+            }
             
             $('#viewerContent').html(content);
         },

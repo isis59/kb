@@ -5,57 +5,53 @@
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background-color: #f5f5f5;
-    height: 100vh;
-    overflow: hidden;
 }
 
-.container-fluid.h-100 {
-    height: 100vh;
-}
-
-.row.h-100 {
+.d-flex.h-100 {
+    display: flex;
     height: 100vh;
 }
 
 /* Sidebar */
 .sidebar {
+    width: 280px;
     background-color: #fff;
-    border-right: 1px solid #e0e0e0;
-    padding: 0;
+    border-right: 1px solid #dee2e6;
     display: flex;
     flex-direction: column;
-    height: 100vh;
     overflow-y: auto;
     box-shadow: 2px 0 4px rgba(0,0,0,0.05);
 }
 
 .sidebar-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #f9f9f9;
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #f8f9fa;
 }
 
 .sidebar-header h1 {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
     font-weight: 700;
     color: #333;
     margin: 0;
 }
 
 .sidebar-actions {
-    padding: 1rem;
-    border-bottom: 1px solid #e0e0e0;
+    padding: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .search-box {
-    padding: 0 1rem;
-}
-
-.search-box input {
-    border-radius: 4px;
+    padding: 0.75rem;
+    border-bottom: 1px solid #dee2e6;
 }
 
 .nav-tree {
@@ -66,7 +62,7 @@ body {
 
 /* Tree Items */
 .tree-item {
-    margin: 0.25rem 0;
+    margin: 2px 0;
 }
 
 .tree-toggle {
@@ -74,20 +70,25 @@ body {
     border: none;
     cursor: pointer;
     padding: 0.25rem 0.5rem;
-    width: 24px;
+    width: 22px;
     text-align: center;
     color: #666;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+}
+
+.tree-toggle:hover {
+    color: #333;
 }
 
 .tree-item-content {
     display: flex;
     align-items: center;
-    padding: 0.5rem;
+    padding: 0.4rem;
     border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.15s;
     gap: 0.5rem;
+    user-select: none;
 }
 
 .tree-item-content:hover {
@@ -104,11 +105,12 @@ body {
     width: 18px;
     text-align: center;
     color: #999;
+    font-size: 0.9rem;
 }
 
 .tree-item-text {
     flex-grow: 1;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -120,9 +122,10 @@ body {
     cursor: pointer;
     color: #999;
     opacity: 0;
-    transition: opacity 0.2s, color 0.2s;
-    padding: 0.25rem;
-    font-size: 0.85rem;
+    transition: all 0.15s;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.8rem;
+    line-height: 1;
 }
 
 .tree-item-content:hover .tree-item-delete {
@@ -134,7 +137,7 @@ body {
 }
 
 .tree-children {
-    margin-left: 1.5rem;
+    margin-left: 1rem;
     border-left: 1px solid #e0e0e0;
     padding-left: 0;
 }
@@ -145,6 +148,7 @@ body {
 
 /* Main Content Area */
 .main-content {
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -152,15 +156,33 @@ body {
     overflow: hidden;
 }
 
-.view-container {
+.content-view {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
 }
 
-.view-container.active {
-    display: flex !important;
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #999;
+    padding: 2rem;
+    text-align: center;
+}
+
+.empty-state i {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+}
+
+.empty-state p {
+    font-size: 1.1rem;
 }
 
 /* Viewer */
@@ -168,14 +190,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2rem;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #f9f9f9;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    gap: 1rem;
 }
 
 .viewer-header h1 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 1.8rem;
     flex-grow: 1;
 }
 
@@ -186,15 +209,25 @@ body {
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
+    line-height: 1.6;
 }
 
-.viewer-content h1, .viewer-content h2, .viewer-content h3 {
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
+.viewer-content h1 {
+    font-size: 2rem;
+    margin: 1.5rem 0 0.5rem 0;
+}
+
+.viewer-content h2 {
+    font-size: 1.5rem;
+    margin: 1.5rem 0 0.5rem 0;
+}
+
+.viewer-content h3 {
+    font-size: 1.2rem;
+    margin: 1rem 0 0.3rem 0;
 }
 
 .viewer-content p {
-    line-height: 1.6;
     margin-bottom: 1rem;
     color: #333;
 }
@@ -206,7 +239,6 @@ body {
 
 .viewer-content li {
     margin-bottom: 0.5rem;
-    line-height: 1.6;
 }
 
 .viewer-content blockquote {
@@ -219,7 +251,7 @@ body {
 
 .viewer-content code {
     background-color: #f5f5f5;
-    padding: 0.2rem 0.4rem;
+    padding: 0.2rem 0.5rem;
     border-radius: 3px;
     font-family: 'Courier New', monospace;
     color: #d63384;
@@ -231,6 +263,7 @@ body {
     border-radius: 4px;
     overflow-x: auto;
     margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
 }
 
 .viewer-content pre code {
@@ -239,99 +272,15 @@ body {
     padding: 0;
 }
 
-/* Editor */
-.editor-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 1rem;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #f9f9f9;
-}
-
-.editor-header #articleTitle {
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-
-.editor-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #fafafa;
-}
-
-.editor {
-    flex-grow: 1;
-    padding: 2rem;
-    outline: none;
-    overflow-y: auto;
-    font-size: 1rem;
-    line-height: 1.6;
-    color: #333;
-    caret-color: #1976d2;
-}
-
-.editor:focus {
-    outline: none;
-}
-
-.editor-buttons-panel {
-    padding: 1rem;
-    border-top: 1px solid #e0e0e0;
-    background-color: #fafafa;
-    max-height: 150px;
-    overflow-y: auto;
-}
-
-.editor-buttons-panel h5 {
-    margin: 0 0 0.5rem 0;
-    font-size: 0.95rem;
-}
-
-.buttons-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.button-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background-color: #e3f2fd;
-    color: #1976d2;
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    white-space: nowrap;
-}
-
-.button-tag .delete-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #1976d2;
-    padding: 0;
-    margin-left: 0.5rem;
-}
-
-.button-tag .delete-btn:hover {
-    color: #f44336;
-}
-
-/* Buttons Container (Viewer) */
 .buttons-container {
-    padding: 2rem;
-    border-top: 1px solid #e0e0e0;
-    background-color: #f9f9f9;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #dee2e6;
+    background-color: #f8f9fa;
 }
 
 .buttons-container h5 {
     margin-bottom: 1rem;
-    color: #333;
+    font-size: 0.95rem;
 }
 
 .action-buttons {
@@ -344,14 +293,14 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.6rem 1.2rem;
+    padding: 0.5rem 1rem;
     background-color: #9c27b0;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     transition: background-color 0.2s;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 .action-btn:hover {
@@ -363,9 +312,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 2rem;
-    border-bottom: 1px solid #e0e0e0;
-    background-color: #f9f9f9;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #f8f9fa;
 }
 
 .results-header h2 {
@@ -383,9 +332,9 @@ body {
 
 .result-item {
     background-color: #fff;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #dee2e6;
     border-radius: 4px;
-    padding: 1.5rem;
+    padding: 1rem;
     margin-bottom: 1rem;
     cursor: pointer;
     transition: box-shadow 0.2s;
@@ -405,61 +354,104 @@ body {
     margin: 0;
     color: #666;
     font-size: 0.95rem;
-    line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-/* Empty State */
-.empty-state {
+/* Editor */
+.editor-header {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #999;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #f8f9fa;
 }
 
-.empty-state i {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-    opacity: 0.5;
-}
-
-.empty-state p {
+.editor-header #articleTitle {
     font-size: 1.2rem;
+    font-weight: 600;
 }
 
-/* Utilities */
-.d-inline-block {
-    display: inline-block;
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #fafafa;
 }
 
-.flex-grow-1 {
+.editor {
     flex-grow: 1;
+    padding: 1.5rem 2rem;
+    outline: none;
+    overflow-y: auto;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #333;
+    caret-color: #1976d2;
+    border: none;
 }
 
-.ms-2 {
-    margin-left: 0.5rem;
+.editor:focus {
+    outline: none;
 }
 
-.mt-2 {
-    margin-top: 0.5rem;
+.editor-buttons-panel {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #dee2e6;
+    background-color: #fafafa;
+    max-height: 120px;
+    overflow-y: auto;
 }
 
-.mt-3 {
-    margin-top: 1rem;
+.editor-buttons-panel h6 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.85rem;
+    color: #666;
 }
 
-.w-100 {
-    width: 100%;
+.buttons-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.button-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    padding: 0.3rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.button-tag .delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #1976d2;
+    padding: 0;
+    margin-left: 0.3rem;
+    line-height: 1;
+    font-size: 0.7rem;
+}
+
+.button-tag .delete-btn:hover {
+    color: #f44336;
 }
 
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -473,4 +465,15 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #999;
+}
+
+/* Utilities */
+.vr {
+    width: 1px;
+    height: 1.5rem;
+    background-color: #dee2e6;
+}
+
+.flex-grow-1 {
+    flex-grow: 1;
 }

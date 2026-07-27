@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    
+    # Route API requests to api.php
+    RewriteRule ^api/kb/(.*)$ api.php [QSA,L]
+    
+    # Allow actual files and directories to pass through
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+</IfModule>

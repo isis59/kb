@@ -63,6 +63,12 @@
                         <i class="fas fa-edit"></i> Edit
                     </button>
                 </div>
+                <div id="viewerVariablesPanel" class="viewer-variables" style="display:none;">
+                    <!-- Variables inputs will be rendered here -->
+                </div>
+                <div id="viewerCheckboxesPanel" class="viewer-checkboxes" style="display:none;">
+                    <!-- Checkboxes will be rendered here -->
+                </div>
                 <div id="viewerContent" class="viewer-content">
                     <!-- Content displayed here -->
                 </div>
@@ -77,7 +83,10 @@
                     <button class="btn btn-secondary btn-sm" id="backBtn">
                         <i class="fas fa-chevron-left"></i>
                     </button>
-                    <input type="text" id="articleTitle" class="form-control ms-2 flex-grow-1" placeholder="Article title">
+                    <input type="text" id="articleTitle" class="form-control ms-2" placeholder="Article title" style="max-width: 300px;">
+                    <select id="articleFolder" class="form-select ms-2" style="max-width: 200px;">
+                        <option value="">Root</option>
+                    </select>
                     <button class="btn btn-success ms-2" id="saveBtn">
                         <i class="fas fa-save"></i> Save
                     </button>
@@ -96,12 +105,8 @@
                         <i class="fas fa-strikethrough"></i>
                     </button>
                     <div class="vr ms-2 me-2"></div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary editor-btn" data-action="heading1" title="Heading 1">
-                        H1
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary editor-btn" data-action="heading2" title="Heading 2">
-                        H2
-                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary editor-btn" data-action="heading1" title="Heading 1">H1</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary editor-btn" data-action="heading2" title="Heading 2">H2</button>
                     <div class="vr ms-2 me-2"></div>
                     <button type="button" class="btn btn-sm btn-outline-secondary editor-btn" data-action="ul" title="Bullet List">
                         <i class="fas fa-list-ul"></i>
@@ -116,16 +121,92 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary editor-btn" data-action="code" title="Code Block">
                         <i class="fas fa-code"></i>
                     </button>
+                    <button class="btn btn-sm btn-outline-warning ms-2" id="addVariableBtn" title="Add {{variable}}">
+                        <i class="fas fa-dollar-sign"></i> Variable
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning ms-2" id="addCheckboxBtn" title="Add {{checkbox}}">
+                        <i class="fas fa-check-square"></i> Checkbox
+                    </button>
                     <button class="btn btn-sm btn-outline-info ms-2" id="addButtonBtn">
                         <i class="fas fa-plus"></i> Button
                     </button>
                 </div>
                 <div id="editor" class="editor" contenteditable="true"></div>
-                <div class="editor-buttons-panel">
-                    <h6>Custom Buttons</h6>
-                    <div id="editorButtonsList" class="buttons-list">
-                        <!-- Buttons listed here -->
+                <div class="editor-side-panel">
+                    <div class="panel-section">
+                        <h6>Variables</h6>
+                        <div id="editorVariablesList" class="editor-list"><!-- Variables listed here --></div>
                     </div>
+                    <div class="panel-section">
+                        <h6>Checkboxes</h6>
+                        <div id="editorCheckboxesList" class="editor-list"><!-- Checkboxes listed here --></div>
+                    </div>
+                    <div class="panel-section">
+                        <h6>Custom Buttons</h6>
+                        <div id="editorButtonsList" class="editor-list"><!-- Buttons listed here --></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Variable Config Modal -->
+    <div class="modal fade" id="variableConfigModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Variable</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Variable Name (without {{}})</label>
+                        <input type="text" id="variableName" class="form-control" placeholder="e.g., username">
+                        <small class="text-muted">Use {{variableName}} in your content</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Label (for viewer)</label>
+                        <input type="text" id="variableLabel" class="form-control" placeholder="e.g., User Name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Placeholder</label>
+                        <input type="text" id="variablePlaceholder" class="form-control" placeholder="e.g., Enter your name">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveVariableBtn">Add Variable</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkbox Config Modal -->
+    <div class="modal fade" id="checkboxConfigModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Conditional Content</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Checkbox Name (without {{}})</label>
+                        <input type="text" id="checkboxName" class="form-control" placeholder="e.g., checkbox1">
+                        <small class="text-muted">Use {{checkboxName-content}} in your content where you want the text to appear</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Checkbox Label (for viewer)</label>
+                        <input type="text" id="checkboxLabel" class="form-control" placeholder="e.g., Add apology">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Content to insert when checked</label>
+                        <textarea id="checkboxContent" class="form-control" rows="3" placeholder="e.g., sorry to be late"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveCheckboxBtn">Add Checkbox</button>
                 </div>
             </div>
         </div>

@@ -160,6 +160,7 @@
             $('#viewerTitle').text(this.currentArticle.title);
             this.renderViewerVariables();
             this.renderViewerCheckboxes();
+            this.renderViewerButtons();
             this.updatePreview();
         },
 
@@ -530,15 +531,31 @@
         // Tree
         renderTree: function() {
             const tree = $('#navTree').empty();
-            const items = [];
+            
+            // First, render directories with their nested articles
             Object.values(this.directories).forEach(dir => {
-                items.push({ ...dir, isDir: true });
+                const dirElement = this.renderTreeItem({ ...dir, isDir: true });
+                tree.append(dirElement);
+                
+                // Find articles that belong to this directory
+                const childArticles = Object.values(this.articles).filter(a => a.folderId === dir.id);
+                
+                // Add articles as children of the directory
+                if (childArticles.length > 0) {
+                    const childrenContainer = dirElement.find('.tree-children');
+                    childArticles.forEach(article => {
+                        const articleElement = this.renderTreeItem({ ...article, isDir: false });
+                        childrenContainer.append(articleElement);
+                    });
+                }
             });
-            Object.values(this.articles).forEach(article => {
-                items.push({ ...article, isDir: false });
+            
+            // Then, render root-level articles (those without a folder)
+            const rootArticles = Object.values(this.articles).filter(a => !a.folderId);
+            rootArticles.forEach(article => {
+                const articleElement = this.renderTreeItem({ ...article, isDir: false });
+                tree.append(articleElement);
             });
-            items.sort((a, b) => (b.isDir ? 1 : -1) - (a.isDir ? 1 : -1));
-            items.forEach(item => tree.append(this.renderTreeItem(item)));
         },
 
         renderTreeItem: function(item) {

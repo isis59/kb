@@ -50,7 +50,7 @@ function handleSave() {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
     
-    if (!$data) {
+    if ($data === null) {
         throw new Exception('Invalid JSON data');
     }
     
@@ -100,30 +100,30 @@ function handleLoad() {
     global $kbFile;
     
     if (!file_exists($kbFile)) {
-        // Return empty KB structure with all required fields
+        // Return empty KB structure with all required fields as JSON objects
         http_response_code(200);
         echo json_encode([
-            'articles' => [],
-            'directories' => [],
-            'globalVariables' => [],
-            'globalCheckboxes' => [],
-            'globalButtons' => []
+            'articles' => new stdClass(),
+            'directories' => new stdClass(),
+            'globalVariables' => new stdClass(),
+            'globalCheckboxes' => new stdClass(),
+            'globalButtons' => new stdClass()
         ]);
         return;
     }
     
     $data = json_decode(file_get_contents($kbFile), true);
     
-    if (!$data) {
+    if ($data === null) {
         throw new Exception('Failed to parse knowledge base');
     }
     
-    // Ensure all required fields exist
-    $data['articles'] = $data['articles'] ?? [];
-    $data['directories'] = $data['directories'] ?? [];
-    $data['globalVariables'] = $data['globalVariables'] ?? [];
-    $data['globalCheckboxes'] = $data['globalCheckboxes'] ?? [];
-    $data['globalButtons'] = $data['globalButtons'] ?? [];
+    // Ensure all required fields exist and are returned as JSON objects (not arrays)
+    $data['articles'] = (!empty($data['articles']) && is_array($data['articles'])) ? $data['articles'] : new stdClass();
+    $data['directories'] = (!empty($data['directories']) && is_array($data['directories'])) ? $data['directories'] : new stdClass();
+    $data['globalVariables'] = (!empty($data['globalVariables']) && is_array($data['globalVariables'])) ? $data['globalVariables'] : new stdClass();
+    $data['globalCheckboxes'] = (!empty($data['globalCheckboxes']) && is_array($data['globalCheckboxes'])) ? $data['globalCheckboxes'] : new stdClass();
+    $data['globalButtons'] = (!empty($data['globalButtons']) && is_array($data['globalButtons'])) ? $data['globalButtons'] : new stdClass();
     
     http_response_code(200);
     echo json_encode($data);

@@ -92,6 +92,8 @@
             $(document).on('click', '#addVariableBtn', () => this.openVariableModal());
             $(document).on('click', '#saveVariableBtn', () => this.saveVariable());
             $(document).on('click', '.edit-variable-btn', (e) => this.editVariable($(e.target).data('name')));
+            $(document).on('click', '#addGlobalVariableBtn', () => this.openGlobalVariableModal());
+            $(document).on('click', '#saveGlobalVariableBtn', () => this.saveGlobalVariable());
             
             // Checkboxes
             $(document).on('click', '#addCheckboxBtn', () => this.openCheckboxModal());
@@ -104,6 +106,8 @@
             $(document).on('click', '#addButtonBtn', () => this.openButtonModal());
             $(document).on('click', '#saveButtonBtn', () => this.saveButton());
             $(document).on('click', '.edit-button-btn', (e) => this.editButton($(e.target).data('id')));
+            $(document).on('click', '#addGlobalButtonBtn', () => this.openGlobalButtonModal());
+            $(document).on('click', '#saveGlobalButtonBtn', () => this.saveGlobalButton());
             
             // Viewer interactions
             $(document).on('input', '.viewer-variable', () => this.updatePreview());
@@ -257,6 +261,8 @@
             $('#variableName').val('').prop('disabled', false);
             $('#variableLabel').val('');
             $('#variablePlaceholder').val('');
+            $('input[name="variableTransform"][value="none"]').prop('checked', true);
+            $('#variableTrim').prop('checked', false);
             $('#variableModalLabel').text('Add Variable');
             new bootstrap.Modal(document.getElementById('variableConfigModal')).show();
         },
@@ -268,6 +274,8 @@
             $('#variableName').val(name).prop('disabled', true);
             $('#variableLabel').val(variable.label);
             $('#variablePlaceholder').val(variable.placeholder || '');
+            $('input[name="variableTransform"][value="' + (variable.transform || 'none') + '"]').prop('checked', true);
+            $('#variableTrim').prop('checked', !!variable.trim);
             $('#variableModalLabel').text('Edit Variable');
             new bootstrap.Modal(document.getElementById('variableConfigModal')).show();
         },
@@ -276,6 +284,8 @@
             const name = $('#variableName').val().trim();
             const label = $('#variableLabel').val().trim();
             const placeholder = $('#variablePlaceholder').val().trim();
+            const transform = $('input[name="variableTransform"]:checked').val() || 'none';
+            const trim = $('#variableTrim').is(':checked');
             
             if (!name) { alert('Variable name required'); return; }
             if (!label) { alert('Label required'); return; }
@@ -285,7 +295,7 @@
             if (this.editingItem && this.editingItem.type === 'variable') {
                 const idx = this.currentArticle.variables.findIndex(v => v.name === name);
                 if (idx >= 0) {
-                    this.currentArticle.variables[idx] = { name, label, placeholder, value: this.currentArticle.variables[idx].value };
+                    this.currentArticle.variables[idx] = { name, label, placeholder, transform, trim, value: this.currentArticle.variables[idx].value };
                 }
                 this.editingItem = null;
             } else {
@@ -293,7 +303,7 @@
                     alert('Variable already exists');
                     return;
                 }
-                this.currentArticle.variables.push({ name, label, placeholder, value: '' });
+                this.currentArticle.variables.push({ name, label, placeholder, transform, trim, value: '' });
             }
             
             this.saveToServer();
@@ -308,13 +318,26 @@
             this.renderEditorVariables();
         },
 
+        // Return a short human-readable label for the active transform/trim combo
+        _transformLabel: function(transform, doTrim) {
+            const parts = [];
+            if (transform && transform !== 'none') {
+                const map = { uppercase: 'UPPER', capitalize: 'Cap', lowercase: 'lower' };
+                parts.push(map[transform] || transform);
+            }
+            if (doTrim) parts.push('trim');
+            return parts.join(' + ');
+        },
+
         renderEditorVariables: function() {
             const container = $('#editorVariablesList').empty();
             if (!this.currentArticle || !this.currentArticle.variables) return;
             this.currentArticle.variables.forEach(v => {
+                const badge = this._transformLabel(v.transform, v.trim);
                 const tag = $(`
                     <div class="tag">
                         {{${this.escape(v.name)}}}
+                        ${badge ? '<span style="font-size:0.7em;opacity:0.75;margin-left:2px;">[' + this.escape(badge) + ']</span>' : ''}
                         <button class="edit-variable-btn" type="button" title="Edit" data-name="${this.escape(v.name)}">✎</button>
                         <button class="delete-btn" type="button" title="Delete">×</button>
                     </div>
@@ -322,6 +345,75 @@
                 tag.find('.delete-btn').on('click', () => this.deleteVariable(v.name));
                 container.append(tag);
             });
+            // Add "From Library" button (always visible to allow adding library vars)
+            const libBtn = $('<button id="addGlobalVariableBtn" class="btn btn-sm btn-info mt-2 w-100">+ From Library</button>');
+            container.append(libBtn);
+        },
+
+        openGlobalVariableModal: function() {
+            const list = $('<div class="global-variable-list"></div>');
+            const libraryItems = Object.entries(this.globalVariables);
+
+            if (libraryItems.length === 0) {
+                list.html('<p class="text-muted">No variables in library. Use the "Save to Library" tab to add one.</p>');
+            } else {
+                libraryItems.forEach(([id, v]) => {
+                    const alreadyAdded = this.currentArticle && this.currentArticle.variables.some(a => a.name === v.name);
+                    const transformLabel = this._transformLabel(v.transform, v.trim);
+                    const item = $(`
+                        <div class="variable-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; background-color: ${alreadyAdded ? '#f0f0f0' : '#fff'}; border-radius: 4px;">
+                            <strong>{{${this.escape(v.name)}}}</strong>
+                            <span style="margin-left: 8px; color: #666; font-size: 0.9em;">${this.escape(v.label)}</span>
+                            ${transformLabel ? '<span style="margin-left: 8px; font-size: 0.8em; background:#e3f2fd; color:#1976d2; padding:1px 6px; border-radius:3px;">' + this.escape(transformLabel) + '</span>' : ''}
+                            ${alreadyAdded ? '<span style="color: #999; float: right;">✓ Already added</span>' : ''}
+                        </div>
+                    `);
+                    if (!alreadyAdded && this.currentArticle) {
+                        item.on('click', () => {
+                            this.currentArticle.variables.push({ name: v.name, label: v.label, placeholder: v.placeholder || '', transform: v.transform || 'none', trim: !!v.trim, value: '' });
+                            this.saveToServer();
+                            this.renderEditorVariables();
+                            bootstrap.Modal.getInstance(document.getElementById('globalVariableModal')).hide();
+                        });
+                    }
+                    list.append(item);
+                });
+            }
+            $('#globalVariableList').html(list);
+            $('#globalVariableName').val('');
+            $('#globalVariableLabel').val('');
+            $('#globalVariablePlaceholder').val('');
+            $('input[name="globalVariableTransform"][value="none"]').prop('checked', true);
+            $('#globalVariableTrim').prop('checked', false);
+            new bootstrap.Modal(document.getElementById('globalVariableModal')).show();
+        },
+
+        saveGlobalVariable: function() {
+            const name = $('#globalVariableName').val().trim();
+            const label = $('#globalVariableLabel').val().trim();
+            const placeholder = $('#globalVariablePlaceholder').val().trim();
+            const transform = $('input[name="globalVariableTransform"]:checked').val() || 'none';
+            const trim = $('#globalVariableTrim').is(':checked');
+
+            if (!name) { alert('Variable name required'); return; }
+            if (!label) { alert('Label required'); return; }
+
+            if (Object.values(this.globalVariables).some(v => v.name === name)) {
+                alert('A variable with this name already exists in the library');
+                return;
+            }
+
+            const id = 'gvar_' + Date.now();
+            this.globalVariables[id] = { name, label, placeholder, transform, trim, createdAt: new Date().toISOString() };
+            this.saveToServer();
+
+            $('#globalVariableName').val('');
+            $('#globalVariableLabel').val('');
+            $('#globalVariablePlaceholder').val('');
+            $('input[name="globalVariableTransform"][value="none"]').prop('checked', true);
+            $('#globalVariableTrim').prop('checked', false);
+            bootstrap.Modal.getInstance(document.getElementById('globalVariableModal')).hide();
+            alert('Variable added to library!');
         },
 
         renderViewerVariables: function() {
@@ -350,6 +442,7 @@
             $('#checkboxName').val('').prop('disabled', false);
             $('#checkboxLabel').val('');
             $('#checkboxContent').val('');
+            $('#checkboxDefaultValue').val('');
             $('#checkboxModalLabel').text('Add Checkbox');
             new bootstrap.Modal(document.getElementById('checkboxConfigModal')).show();
         },
@@ -361,6 +454,7 @@
             $('#checkboxName').val(name).prop('disabled', true);
             $('#checkboxLabel').val(checkbox.label);
             $('#checkboxContent').val(checkbox.content);
+            $('#checkboxDefaultValue').val(checkbox.defaultValue !== undefined ? checkbox.defaultValue : '');
             $('#checkboxModalLabel').text('Edit Checkbox');
             new bootstrap.Modal(document.getElementById('checkboxConfigModal')).show();
         },
@@ -368,18 +462,18 @@
         saveCheckbox: function() {
             const name = $('#checkboxName').val().trim();
             const label = $('#checkboxLabel').val().trim();
-            const content = $('#checkboxContent').val().trim();
+            const content = $('#checkboxContent').val();
+            const defaultValue = $('#checkboxDefaultValue').val();
             
             if (!name) { alert('Checkbox name required'); return; }
             if (!label) { alert('Label required'); return; }
-            if (!content) { alert('Content required'); return; }
             
             if (!this.currentArticle) return;
             
             if (this.editingItem && this.editingItem.type === 'checkbox') {
                 const idx = this.currentArticle.checkboxes.findIndex(c => c.name === name);
                 if (idx >= 0) {
-                    this.currentArticle.checkboxes[idx] = { name, label, content, checked: this.currentArticle.checkboxes[idx].checked };
+                    this.currentArticle.checkboxes[idx] = { name, label, content, defaultValue, checked: this.currentArticle.checkboxes[idx].checked };
                 }
                 this.editingItem = null;
             } else {
@@ -387,7 +481,7 @@
                     alert('Checkbox already exists');
                     return;
                 }
-                this.currentArticle.checkboxes.push({ name, label, content, checked: false });
+                this.currentArticle.checkboxes.push({ name, label, content, defaultValue, checked: false });
             }
             
             this.saveToServer();
@@ -418,11 +512,9 @@
                 container.append(tag);
             });
             
-            // Add "From Library" button if library has items
-            if (Object.keys(this.globalCheckboxes).length > 0) {
-                const libBtn = $('<button id="addGlobalCheckboxBtn" class="btn btn-sm btn-info mt-2 w-100">+ From Library</button>');
-                container.append(libBtn);
-            }
+            // Add "From Library" button (always visible to allow adding library checkboxes)
+            const libBtn = $('<button id="addGlobalCheckboxBtn" class="btn btn-sm btn-info mt-2 w-100">+ From Library</button>');
+            container.append(libBtn);
         },
 
         openGlobalCheckboxModal: function() {
@@ -430,20 +522,20 @@
             const libraryItems = Object.entries(this.globalCheckboxes);
             
             if (libraryItems.length === 0) {
-                list.html('<p class="text-muted">No checkboxes in library</p>');
+                list.html('<p class="text-muted">No checkboxes in library. Use the "Save to Library" tab to add one.</p>');
             } else {
                 libraryItems.forEach(([id, cb]) => {
                     const alreadyAdded = this.currentArticle.checkboxes.some(c => c.name === cb.name);
                     const item = $(`
                         <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; ${alreadyAdded ? 'background-color: #f0f0f0;' : 'background-color: #fff;'} border-radius: 4px;">
                             <strong>${this.escape(cb.label)}</strong>
-                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;">${this.escape(cb.content.substring(0, 50))}${cb.content.length > 50 ? '...' : ''}</p>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;">${this.escape((cb.content || '').substring(0, 50))}${(cb.content || '').length > 50 ? '...' : ''}</p>
                             ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
                         </div>
                     `);
                     if (!alreadyAdded) {
                         item.on('click', () => {
-                            this.currentArticle.checkboxes.push({ name: cb.name, label: cb.label, content: cb.content, checked: false });
+                            this.currentArticle.checkboxes.push({ name: cb.name, label: cb.label, content: cb.content || '', defaultValue: cb.defaultValue !== undefined ? cb.defaultValue : '', checked: false });
                             this.saveToServer();
                             this.renderEditorCheckboxes();
                             bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
@@ -458,13 +550,12 @@
 
         saveGlobalCheckbox: function() {
             const label = $('#globalCheckboxLabel').val().trim();
-            const content = $('#globalCheckboxContent').val().trim();
+            const content = $('#globalCheckboxContent').val();
             
             if (!label) { alert('Label required'); return; }
-            if (!content) { alert('Content required'); return; }
             
             const id = 'gchk_' + Date.now();
-            this.globalCheckboxes[id] = { name: id, label, content, createdAt: new Date().toISOString() };
+            this.globalCheckboxes[id] = { name: id, label, content, defaultValue: '', createdAt: new Date().toISOString() };
             this.saveToServer();
             
             $('#globalCheckboxLabel').val('');
@@ -493,22 +584,37 @@
             container.append(grid);
         },
 
+        // Apply display transform and trim to a variable value
+        applyVariableTransform: function(value, transform, doTrim) {
+            let val = value || '';
+            if (doTrim) val = val.trim();
+            if (transform === 'uppercase') return val.toUpperCase();
+            if (transform === 'capitalize') return val.charAt(0).toUpperCase() + val.slice(1);
+            if (transform === 'lowercase') return val.toLowerCase();
+            return val;
+        },
+
         // Get rendered content with variables and checkboxes
         getContentWithVariables: function() {
             if (!this.currentArticle) return '';
             
             let content = this.currentArticle.content;
             
-            // Replace variables with their values
+            // Replace variables with their transformed values
             this.currentArticle.variables.forEach(v => {
                 const regex = new RegExp('{{' + v.name + '}}', 'g');
-                content = content.replace(regex, v.value || '');
+                const transformed = this.applyVariableTransform(v.value, v.transform, v.trim);
+                content = content.replace(regex, transformed);
             });
             
-            // Include enabled checkboxes content
+            // Include enabled checkboxes content; use defaultValue when unchecked
             this.currentArticle.checkboxes.forEach(c => {
                 const regex = new RegExp('{{' + c.name + '-content}}', 'g');
-                content = content.replace(regex, c.checked ? c.content : '');
+                if (c.checked) {
+                    content = content.replace(regex, c.content);
+                } else {
+                    content = content.replace(regex, c.defaultValue !== undefined ? c.defaultValue : '');
+                }
             });
             
             return content;
@@ -602,6 +708,61 @@
                 tag.find('.delete-btn').on('click', () => this.deleteButton(btn.id));
                 container.append(tag);
             });
+            // Add "From Library" button (always visible to allow adding library buttons)
+            const libBtn = $('<button id="addGlobalButtonBtn" class="btn btn-sm btn-info mt-2 w-100">+ From Library</button>');
+            container.append(libBtn);
+        },
+
+        openGlobalButtonModal: function() {
+            const list = $('<div class="global-button-list"></div>');
+            const libraryItems = Object.entries(this.globalButtons);
+
+            if (libraryItems.length === 0) {
+                list.html('<p class="text-muted">No buttons in library. Use the "Save to Library" tab to add one.</p>');
+            } else {
+                libraryItems.forEach(([id, btn]) => {
+                    const alreadyAdded = this.currentArticle && this.currentArticle.buttons.some(b => b.globalId === id);
+                    const item = $(`
+                        <div class="button-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; background-color: ${alreadyAdded ? '#f0f0f0' : '#fff'}; border-radius: 4px;">
+                            <strong>${this.escape(btn.label)}</strong>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666; font-family: monospace;">${this.escape(btn.code.substring(0, 60))}${btn.code.length > 60 ? '...' : ''}</p>
+                            ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
+                        </div>
+                    `);
+                    if (!alreadyAdded && this.currentArticle) {
+                        item.on('click', () => {
+                            this.currentArticle.buttons.push({ id: 'btn_' + Date.now(), globalId: id, label: btn.label, code: btn.code });
+                            this.saveToServer();
+                            this.renderEditorButtons();
+                            bootstrap.Modal.getInstance(document.getElementById('globalButtonModal')).hide();
+                        });
+                    }
+                    list.append(item);
+                });
+            }
+            $('#globalButtonList').html(list);
+            $('#globalButtonLabel').val('');
+            $('#globalButtonCode').val('');
+            new bootstrap.Modal(document.getElementById('globalButtonModal')).show();
+        },
+
+        saveGlobalButton: function() {
+            const label = $('#globalButtonLabel').val().trim();
+            const code = $('#globalButtonCode').val().trim();
+
+            if (!label) { alert('Label required'); return; }
+            if (!code) { alert('Code required'); return; }
+            try { new Function(code); }
+            catch (e) { alert('Invalid JS: ' + e.message); return; }
+
+            const id = 'gbtn_' + Date.now();
+            this.globalButtons[id] = { label, code, createdAt: new Date().toISOString() };
+            this.saveToServer();
+
+            $('#globalButtonLabel').val('');
+            $('#globalButtonCode').val('');
+            bootstrap.Modal.getInstance(document.getElementById('globalButtonModal')).hide();
+            alert('Button added to library!');
         },
 
         renderViewerButtons: function() {

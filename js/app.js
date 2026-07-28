@@ -1,23 +1,77 @@
-// Knowledge Base App with Variables & Checkboxes
+// Knowledge Base App with Server Persistence
 (function() {
     'use strict';
 
     const KB = {
         articles: {},
         directories: {},
-        currentArticle: null,
-        globalVariables: {},
         globalCheckboxes: {},
         globalButtons: {},
-        editingItem: null, // Track what's being edited
+        globalVariables: {},
+        currentArticle: null,
+        editingItem: null,
+        apiBase: './server/api.php',
 
         // Initialize
         init: function() {
             console.log('Initializing KB...');
-            this.loadStorage();
-            this.bindEvents();
-            this.renderTree();
-            this.showEmptyState();
+            this.loadFromServer();
+        },
+
+        // Server Communication
+        loadFromServer: function() {
+            $.ajax({
+                url: this.apiBase + '?action=load',
+                type: 'GET',
+                dataType: 'json',
+                success: (data) => {
+                    this.articles = data.articles || {};
+                    this.directories = data.directories || {};
+                    this.globalVariables = data.globalVariables || {};
+                    this.globalCheckboxes = data.globalCheckboxes || {};
+                    this.globalButtons = data.globalButtons || {};
+                    
+                    // Normalize articles
+                    Object.values(this.articles).forEach(article => {
+                        article.variables = article.variables || [];
+                        article.checkboxes = article.checkboxes || [];
+                        article.buttons = article.buttons || [];
+                    });
+                    
+                    console.log('Loaded:', Object.keys(this.articles).length, 'articles');
+                    this.bindEvents();
+                    this.renderTree();
+                    this.showEmptyState();
+                },
+                error: (xhr, status, error) => {
+                    console.error('Load error:', error);
+                    alert('Failed to load data from server');
+                }
+            });
+        },
+
+        saveToServer: function() {
+            const data = {
+                articles: this.articles,
+                directories: this.directories,
+                globalVariables: this.globalVariables,
+                globalCheckboxes: this.globalCheckboxes,
+                globalButtons: this.globalButtons
+            };
+
+            $.ajax({
+                url: this.apiBase + '?action=save',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: (response) => {
+                    console.log('Saved to server:', response.message);
+                },
+                error: (xhr, status, error) => {
+                    console.error('Save error:', error);
+                    alert('Failed to save to server');
+                }
+            });
         },
 
         // Event Binding
@@ -53,52 +107,6 @@
             $(document).on('change', '.viewer-checkbox', () => this.updatePreview());
         },
 
-        // Storage
-        loadStorage: function() {
-            const stored = localStorage.getItem('kb_data');
-            if (stored) {
-                try {
-                    const data = JSON.parse(stored);
-                    this.articles = data.articles || {};
-                    this.directories = data.directories || {};
-                    this.globalVariables = data.globalVariables || {};
-                    this.globalCheckboxes = data.globalCheckboxes || {};
-                    this.globalButtons = data.globalButtons || {};
-                    // Normalize articles
-                    Object.values(this.articles).forEach(article => {
-                        article.variables = article.variables || [];
-                        article.checkboxes = article.checkboxes || [];
-                        article.buttons = article.buttons || [];
-                    });
-                    console.log('Loaded:', Object.keys(this.articles).length, 'articles');
-                } catch (e) {
-                    console.error('Load error:', e);
-                }
-            }
-        },
-
-        saveStorage: function() {
-            const data = { 
-                articles: this.articles, 
-                directories: this.directories,
-                globalVariables: this.globalVariables,
-                globalCheckboxes: this.globalCheckboxes,
-                globalButtons: this.globalButtons
-            };
-            localStorage.setItem('kb_data', JSON.stringify(data));
-            this.syncServer(data);
-        },
-
-        syncServer: function(data) {
-            $.ajax({
-                url: './server/api.php',
-                type: 'POST',
-                data: JSON.stringify(data),
-                contentType: 'application/json',
-                error: () => {}
-            });
-        },
-
         // Article CRUD
         newArticle: function() {
             const title = prompt('Article name:');
@@ -116,7 +124,7 @@
                 buttons: []
             };
             this.currentArticle = this.articles[id];
-            this.saveStorage();
+            this.saveToServer();
             this.renderTree();
             this.enterEdit();
         },
@@ -131,7 +139,7 @@
                 children: [],
                 createdAt: new Date().toISOString()
             };
-            this.saveStorage();
+            this.saveToServer();
             this.renderTree();
         },
 
@@ -145,7 +153,7 @@
             if (!confirm('Delete article?')) return;
             delete this.articles[id];
             this.currentArticle = null;
-            this.saveStorage();
+            this.saveToServer();
             this.renderTree();
             this.showEmptyState();
         },
@@ -153,7 +161,7 @@
         deleteDirectory: function(id) {
             if (!confirm('Delete directory?')) return;
             delete this.directories[id];
-            this.saveStorage();
+            this.saveToServer();
             this.renderTree();
         },
 
@@ -236,7 +244,7 @@
             this.currentArticle.content = $('#editor').html();
             this.currentArticle.updatedAt = new Date().toISOString();
             this.articles[this.currentArticle.id] = this.currentArticle;
-            this.saveStorage();
+            this.saveToServer();
             this.exitEdit();
         },
 
@@ -272,14 +280,12 @@
             if (!this.currentArticle) return;
             
             if (this.editingItem && this.editingItem.type === 'variable') {
-                // Edit existing
                 const idx = this.currentArticle.variables.findIndex(v => v.name === name);
                 if (idx >= 0) {
                     this.currentArticle.variables[idx] = { name, label, placeholder, value: this.currentArticle.variables[idx].value };
                 }
                 this.editingItem = null;
             } else {
-                // Add new
                 if (this.currentArticle.variables.some(v => v.name === name)) {
                     alert('Variable already exists');
                     return;
@@ -287,7 +293,7 @@
                 this.currentArticle.variables.push({ name, label, placeholder, value: '' });
             }
             
-            this.saveStorage();
+            this.saveToServer();
             this.renderEditorVariables();
             bootstrap.Modal.getInstance(document.getElementById('variableConfigModal')).hide();
         },
@@ -295,7 +301,7 @@
         deleteVariable: function(varName) {
             if (!this.currentArticle) return;
             this.currentArticle.variables = this.currentArticle.variables.filter(v => v.name !== varName);
-            this.saveStorage();
+            this.saveToServer();
             this.renderEditorVariables();
         },
 
@@ -368,14 +374,12 @@
             if (!this.currentArticle) return;
             
             if (this.editingItem && this.editingItem.type === 'checkbox') {
-                // Edit existing
                 const idx = this.currentArticle.checkboxes.findIndex(c => c.name === name);
                 if (idx >= 0) {
                     this.currentArticle.checkboxes[idx] = { name, label, content, checked: this.currentArticle.checkboxes[idx].checked };
                 }
                 this.editingItem = null;
             } else {
-                // Add new
                 if (this.currentArticle.checkboxes.some(c => c.name === name)) {
                     alert('Checkbox already exists');
                     return;
@@ -383,7 +387,7 @@
                 this.currentArticle.checkboxes.push({ name, label, content, checked: false });
             }
             
-            this.saveStorage();
+            this.saveToServer();
             this.renderEditorCheckboxes();
             bootstrap.Modal.getInstance(document.getElementById('checkboxConfigModal')).hide();
         },
@@ -391,13 +395,14 @@
         deleteCheckbox: function(cbName) {
             if (!this.currentArticle) return;
             this.currentArticle.checkboxes = this.currentArticle.checkboxes.filter(c => c.name !== cbName);
-            this.saveStorage();
+            this.saveToServer();
             this.renderEditorCheckboxes();
         },
 
         renderEditorCheckboxes: function() {
             const container = $('#editorCheckboxesList').empty();
             if (!this.currentArticle || !this.currentArticle.checkboxes) return;
+            
             this.currentArticle.checkboxes.forEach(c => {
                 const tag = $(`
                     <div class="tag">
@@ -410,9 +415,10 @@
                 container.append(tag);
             });
             
-            // Add option to add from global
+            // Add "From Library" button if library has items
             if (Object.keys(this.globalCheckboxes).length > 0) {
-                container.append($('<button id="addGlobalCheckboxBtn" class="btn btn-sm btn-secondary mt-2">+ From Library</button>'));
+                const libBtn = $('<button id="addGlobalCheckboxBtn" class="btn btn-sm btn-info mt-2 w-100">+ From Library</button>');
+                container.append(libBtn);
             }
         },
 
@@ -421,7 +427,7 @@
             Object.entries(this.globalCheckboxes).forEach(([id, cb]) => {
                 const alreadyAdded = this.currentArticle.checkboxes.some(c => c.name === cb.name);
                 const item = $(`
-                    <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: pointer; ${alreadyAdded ? 'background-color: #f0f0f0;' : ''}">
+                    <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; ${alreadyAdded ? 'background-color: #f0f0f0;' : 'background-color: #fff;'} border-radius: 4px;">
                         <strong>${this.escape(cb.label)}</strong>
                         <p style="margin: 5px 0; font-size: 0.9em; color: #666;">${this.escape(cb.content.substring(0, 50))}${cb.content.length > 50 ? '...' : ''}</p>
                         ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
@@ -430,14 +436,14 @@
                 if (!alreadyAdded) {
                     item.on('click', () => {
                         this.currentArticle.checkboxes.push({ name: cb.name, label: cb.label, content: cb.content, checked: false });
-                        this.saveStorage();
+                        this.saveToServer();
                         this.renderEditorCheckboxes();
                         bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
                     });
                 }
                 list.append(item);
             });
-            $('#globalCheckboxList').html(list);
+            $('#globalCheckboxList').html(list.length > 0 ? list : '<p class="text-muted">No checkboxes in library</p>');
             new bootstrap.Modal(document.getElementById('globalCheckboxModal')).show();
         },
 
@@ -449,8 +455,8 @@
             if (!content) { alert('Content required'); return; }
             
             const id = 'gchk_' + Date.now();
-            this.globalCheckboxes[id] = { label, content, createdAt: new Date().toISOString() };
-            this.saveStorage();
+            this.globalCheckboxes[id] = { name: id, label, content, createdAt: new Date().toISOString() };
+            this.saveToServer();
             
             $('#globalCheckboxLabel').val('');
             $('#globalCheckboxContent').val('');
@@ -478,42 +484,43 @@
             container.append(grid);
         },
 
+        // Get rendered content with variables and checkboxes
+        getContentWithVariables: function() {
+            if (!this.currentArticle) return '';
+            
+            let content = this.currentArticle.content;
+            
+            // Replace variables with their values
+            this.currentArticle.variables.forEach(v => {
+                const regex = new RegExp('{{' + v.name + '}}', 'g');
+                content = content.replace(regex, v.value || '');
+            });
+            
+            // Include enabled checkboxes content
+            this.currentArticle.checkboxes.forEach(c => {
+                const regex = new RegExp('{{' + c.name + '-content}}', 'g');
+                content = content.replace(regex, c.checked ? c.content : '');
+            });
+            
+            return content;
+        },
+
         updatePreview: function() {
             if (!this.currentArticle) return;
             
-            // Update variable values
             if (this.currentArticle.variables) {
                 this.currentArticle.variables.forEach(v => {
                     v.value = $(`.viewer-variable[data-var="${v.name}"]`).val() || '';
                 });
             }
             
-            // Update checkbox states
             if (this.currentArticle.checkboxes) {
                 this.currentArticle.checkboxes.forEach(c => {
                     c.checked = $(`.viewer-checkbox[data-checkbox="${c.name}"]`).is(':checked');
                 });
             }
             
-            // Process content
-            let content = this.currentArticle.content;
-            
-            // Replace variables
-            if (this.currentArticle.variables) {
-                this.currentArticle.variables.forEach(v => {
-                    const regex = new RegExp('{{' + v.name + '}}', 'g');
-                    content = content.replace(regex, this.escape(v.value));
-                });
-            }
-            
-            // Replace conditional checkboxes
-            if (this.currentArticle.checkboxes) {
-                this.currentArticle.checkboxes.forEach(c => {
-                    const regex = new RegExp('{{' + c.name + '-content}}', 'g');
-                    content = content.replace(regex, c.checked ? this.escape(c.content) : '');
-                });
-            }
-            
+            const content = this.getContentWithVariables();
             $('#viewerContent').html(content);
         },
 
@@ -546,18 +553,16 @@
             if (!this.currentArticle) return;
             
             if (this.editingItem && this.editingItem.type === 'button') {
-                // Edit existing
                 const idx = this.currentArticle.buttons.findIndex(b => b.id === this.editingItem.id);
                 if (idx >= 0) {
                     this.currentArticle.buttons[idx] = { id: this.editingItem.id, label, code };
                 }
                 this.editingItem = null;
             } else {
-                // Add new
                 this.currentArticle.buttons.push({ id: 'btn_' + Date.now(), label, code });
             }
             
-            this.saveStorage();
+            this.saveToServer();
             this.renderEditorButtons();
             bootstrap.Modal.getInstance(document.getElementById('buttonConfigModal')).hide();
         },
@@ -565,7 +570,7 @@
         deleteButton: function(btnId) {
             if (!this.currentArticle) return;
             this.currentArticle.buttons = this.currentArticle.buttons.filter(b => b.id !== btnId);
-            this.saveStorage();
+            this.saveToServer();
             this.renderEditorButtons();
         },
 
@@ -669,15 +674,12 @@
         renderTree: function() {
             const tree = $('#navTree').empty();
             
-            // First, render directories with their nested articles
             Object.values(this.directories).forEach(dir => {
                 const dirElement = this.renderTreeItem({ ...dir, isDir: true });
                 tree.append(dirElement);
                 
-                // Find articles that belong to this directory
                 const childArticles = Object.values(this.articles).filter(a => a.folderId === dir.id);
                 
-                // Add articles as children of the directory
                 if (childArticles.length > 0) {
                     const childrenContainer = dirElement.find('.tree-children');
                     childArticles.forEach(article => {
@@ -687,7 +689,6 @@
                 }
             });
             
-            // Then, render root-level articles (those without a folder)
             const rootArticles = Object.values(this.articles).filter(a => !a.folderId);
             rootArticles.forEach(article => {
                 const articleElement = this.renderTreeItem({ ...article, isDir: false });
@@ -741,4 +742,7 @@
     };
 
     $(document).ready(() => KB.init());
+    
+    // Expose KB globally for custom button access
+    window.KB = KB;
 })();

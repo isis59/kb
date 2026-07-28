@@ -261,6 +261,8 @@
             $('#variableName').val('').prop('disabled', false);
             $('#variableLabel').val('');
             $('#variablePlaceholder').val('');
+            $('input[name="variableTransform"][value="none"]').prop('checked', true);
+            $('#variableTrim').prop('checked', false);
             $('#variableModalLabel').text('Add Variable');
             new bootstrap.Modal(document.getElementById('variableConfigModal')).show();
         },
@@ -272,6 +274,8 @@
             $('#variableName').val(name).prop('disabled', true);
             $('#variableLabel').val(variable.label);
             $('#variablePlaceholder').val(variable.placeholder || '');
+            $('input[name="variableTransform"][value="' + (variable.transform || 'none') + '"]').prop('checked', true);
+            $('#variableTrim').prop('checked', !!variable.trim);
             $('#variableModalLabel').text('Edit Variable');
             new bootstrap.Modal(document.getElementById('variableConfigModal')).show();
         },
@@ -280,6 +284,8 @@
             const name = $('#variableName').val().trim();
             const label = $('#variableLabel').val().trim();
             const placeholder = $('#variablePlaceholder').val().trim();
+            const transform = $('input[name="variableTransform"]:checked').val() || 'none';
+            const trim = $('#variableTrim').is(':checked');
             
             if (!name) { alert('Variable name required'); return; }
             if (!label) { alert('Label required'); return; }
@@ -289,7 +295,7 @@
             if (this.editingItem && this.editingItem.type === 'variable') {
                 const idx = this.currentArticle.variables.findIndex(v => v.name === name);
                 if (idx >= 0) {
-                    this.currentArticle.variables[idx] = { name, label, placeholder, value: this.currentArticle.variables[idx].value };
+                    this.currentArticle.variables[idx] = { name, label, placeholder, transform, trim, value: this.currentArticle.variables[idx].value };
                 }
                 this.editingItem = null;
             } else {
@@ -297,7 +303,7 @@
                     alert('Variable already exists');
                     return;
                 }
-                this.currentArticle.variables.push({ name, label, placeholder, value: '' });
+                this.currentArticle.variables.push({ name, label, placeholder, transform, trim, value: '' });
             }
             
             this.saveToServer();
@@ -312,13 +318,26 @@
             this.renderEditorVariables();
         },
 
+        // Return a short human-readable label for the active transform/trim combo
+        _transformLabel: function(transform, doTrim) {
+            const parts = [];
+            if (transform && transform !== 'none') {
+                const map = { uppercase: 'UPPER', capitalize: 'Cap', lowercase: 'lower' };
+                parts.push(map[transform] || transform);
+            }
+            if (doTrim) parts.push('trim');
+            return parts.join(' + ');
+        },
+
         renderEditorVariables: function() {
             const container = $('#editorVariablesList').empty();
             if (!this.currentArticle || !this.currentArticle.variables) return;
             this.currentArticle.variables.forEach(v => {
+                const badge = this._transformLabel(v.transform, v.trim);
                 const tag = $(`
                     <div class="tag">
                         {{${this.escape(v.name)}}}
+                        ${badge ? '<span style="font-size:0.7em;opacity:0.75;margin-left:2px;">[' + this.escape(badge) + ']</span>' : ''}
                         <button class="edit-variable-btn" type="button" title="Edit" data-name="${this.escape(v.name)}">✎</button>
                         <button class="delete-btn" type="button" title="Delete">×</button>
                     </div>
@@ -340,16 +359,18 @@
             } else {
                 libraryItems.forEach(([id, v]) => {
                     const alreadyAdded = this.currentArticle && this.currentArticle.variables.some(a => a.name === v.name);
+                    const transformLabel = this._transformLabel(v.transform, v.trim);
                     const item = $(`
                         <div class="variable-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; background-color: ${alreadyAdded ? '#f0f0f0' : '#fff'}; border-radius: 4px;">
                             <strong>{{${this.escape(v.name)}}}</strong>
                             <span style="margin-left: 8px; color: #666; font-size: 0.9em;">${this.escape(v.label)}</span>
+                            ${transformLabel ? '<span style="margin-left: 8px; font-size: 0.8em; background:#e3f2fd; color:#1976d2; padding:1px 6px; border-radius:3px;">' + this.escape(transformLabel) + '</span>' : ''}
                             ${alreadyAdded ? '<span style="color: #999; float: right;">✓ Already added</span>' : ''}
                         </div>
                     `);
                     if (!alreadyAdded && this.currentArticle) {
                         item.on('click', () => {
-                            this.currentArticle.variables.push({ name: v.name, label: v.label, placeholder: v.placeholder || '', value: '' });
+                            this.currentArticle.variables.push({ name: v.name, label: v.label, placeholder: v.placeholder || '', transform: v.transform || 'none', trim: !!v.trim, value: '' });
                             this.saveToServer();
                             this.renderEditorVariables();
                             bootstrap.Modal.getInstance(document.getElementById('globalVariableModal')).hide();
@@ -362,6 +383,8 @@
             $('#globalVariableName').val('');
             $('#globalVariableLabel').val('');
             $('#globalVariablePlaceholder').val('');
+            $('input[name="globalVariableTransform"][value="none"]').prop('checked', true);
+            $('#globalVariableTrim').prop('checked', false);
             new bootstrap.Modal(document.getElementById('globalVariableModal')).show();
         },
 
@@ -369,6 +392,8 @@
             const name = $('#globalVariableName').val().trim();
             const label = $('#globalVariableLabel').val().trim();
             const placeholder = $('#globalVariablePlaceholder').val().trim();
+            const transform = $('input[name="globalVariableTransform"]:checked').val() || 'none';
+            const trim = $('#globalVariableTrim').is(':checked');
 
             if (!name) { alert('Variable name required'); return; }
             if (!label) { alert('Label required'); return; }
@@ -379,12 +404,14 @@
             }
 
             const id = 'gvar_' + Date.now();
-            this.globalVariables[id] = { name, label, placeholder, createdAt: new Date().toISOString() };
+            this.globalVariables[id] = { name, label, placeholder, transform, trim, createdAt: new Date().toISOString() };
             this.saveToServer();
 
             $('#globalVariableName').val('');
             $('#globalVariableLabel').val('');
             $('#globalVariablePlaceholder').val('');
+            $('input[name="globalVariableTransform"][value="none"]').prop('checked', true);
+            $('#globalVariableTrim').prop('checked', false);
             bootstrap.Modal.getInstance(document.getElementById('globalVariableModal')).hide();
             alert('Variable added to library!');
         },
@@ -557,16 +584,27 @@
             container.append(grid);
         },
 
+        // Apply display transform and trim to a variable value
+        applyVariableTransform: function(value, transform, doTrim) {
+            let val = value || '';
+            if (doTrim) val = val.trim();
+            if (transform === 'uppercase') return val.toUpperCase();
+            if (transform === 'capitalize') return val.charAt(0).toUpperCase() + val.slice(1);
+            if (transform === 'lowercase') return val.toLowerCase();
+            return val;
+        },
+
         // Get rendered content with variables and checkboxes
         getContentWithVariables: function() {
             if (!this.currentArticle) return '';
             
             let content = this.currentArticle.content;
             
-            // Replace variables with their values
+            // Replace variables with their transformed values
             this.currentArticle.variables.forEach(v => {
                 const regex = new RegExp('{{' + v.name + '}}', 'g');
-                content = content.replace(regex, v.value || '');
+                const transformed = this.applyVariableTransform(v.value, v.transform, v.trim);
+                content = content.replace(regex, transformed);
             });
             
             // Include enabled checkboxes content; use defaultValue when unchecked

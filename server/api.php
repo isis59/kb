@@ -19,16 +19,18 @@ if (!is_dir($dataDir)) {
     mkdir($dataDir, 0755, true);
 }
 
+// Parse query parameters
+$action = $_GET['action'] ?? '';
+
 // Route handling
 $method = $_SERVER['REQUEST_METHOD'];
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 try {
-    if (preg_match('/\/api\/kb\/save/', $path) && $method === 'POST') {
+    if ($action === 'save' && $method === 'POST') {
         handleSave();
-    } elseif (preg_match('/\/api\/kb\/load/', $path) && $method === 'GET') {
+    } elseif ($action === 'load' && $method === 'GET') {
         handleLoad();
-    } elseif (preg_match('/\/api\/kb\/export/', $path) && $method === 'GET') {
+    } elseif ($action === 'export' && $method === 'GET') {
         handleExport();
     } else {
         http_response_code(404);
@@ -43,7 +45,7 @@ try {
  * Save knowledge base data
  */
 function handleSave() {
-    global $kbFile;
+    global $kbFile, $dataDir;
     
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
@@ -69,7 +71,7 @@ function handleSave() {
     }
     
     // Also create individual article files for backup
-    $articlesDir = dirname($kbFile) . '/articles';
+    $articlesDir = $dataDir . '/articles';
     if (!is_dir($articlesDir)) {
         mkdir($articlesDir, 0755, true);
     }
@@ -98,11 +100,14 @@ function handleLoad() {
     global $kbFile;
     
     if (!file_exists($kbFile)) {
-        // Return empty KB structure
+        // Return empty KB structure with all required fields
         http_response_code(200);
         echo json_encode([
             'articles' => [],
-            'directories' => []
+            'directories' => [],
+            'globalVariables' => [],
+            'globalCheckboxes' => [],
+            'globalButtons' => []
         ]);
         return;
     }
@@ -112,6 +117,13 @@ function handleLoad() {
     if (!$data) {
         throw new Exception('Failed to parse knowledge base');
     }
+    
+    // Ensure all required fields exist
+    $data['articles'] = $data['articles'] ?? [];
+    $data['directories'] = $data['directories'] ?? [];
+    $data['globalVariables'] = $data['globalVariables'] ?? [];
+    $data['globalCheckboxes'] = $data['globalCheckboxes'] ?? [];
+    $data['globalButtons'] = $data['globalButtons'] ?? [];
     
     http_response_code(200);
     echo json_encode($data);

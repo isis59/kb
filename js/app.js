@@ -46,6 +46,7 @@
                 error: (xhr, status, error) => {
                     console.error('Load error:', error);
                     alert('Failed to load data from server');
+                    this.bindEvents();
                 }
             });
         },
@@ -424,26 +425,32 @@
 
         openGlobalCheckboxModal: function() {
             const list = $('<div class="global-checkbox-list"></div>');
-            Object.entries(this.globalCheckboxes).forEach(([id, cb]) => {
-                const alreadyAdded = this.currentArticle.checkboxes.some(c => c.name === cb.name);
-                const item = $(`
-                    <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; ${alreadyAdded ? 'background-color: #f0f0f0;' : 'background-color: #fff;'} border-radius: 4px;">
-                        <strong>${this.escape(cb.label)}</strong>
-                        <p style="margin: 5px 0; font-size: 0.9em; color: #666;">${this.escape(cb.content.substring(0, 50))}${cb.content.length > 50 ? '...' : ''}</p>
-                        ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
-                    </div>
-                `);
-                if (!alreadyAdded) {
-                    item.on('click', () => {
-                        this.currentArticle.checkboxes.push({ name: cb.name, label: cb.label, content: cb.content, checked: false });
-                        this.saveToServer();
-                        this.renderEditorCheckboxes();
-                        bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
-                    });
-                }
-                list.append(item);
-            });
-            $('#globalCheckboxList').html(list.length > 0 ? list : '<p class="text-muted">No checkboxes in library</p>');
+            const libraryItems = Object.entries(this.globalCheckboxes);
+            
+            if (libraryItems.length === 0) {
+                list.html('<p class="text-muted">No checkboxes in library</p>');
+            } else {
+                libraryItems.forEach(([id, cb]) => {
+                    const alreadyAdded = this.currentArticle.checkboxes.some(c => c.name === cb.name);
+                    const item = $(`
+                        <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; ${alreadyAdded ? 'background-color: #f0f0f0;' : 'background-color: #fff;'} border-radius: 4px;">
+                            <strong>${this.escape(cb.label)}</strong>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;">${this.escape(cb.content.substring(0, 50))}${cb.content.length > 50 ? '...' : ''}</p>
+                            ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
+                        </div>
+                    `);
+                    if (!alreadyAdded) {
+                        item.on('click', () => {
+                            this.currentArticle.checkboxes.push({ name: cb.name, label: cb.label, content: cb.content, checked: false });
+                            this.saveToServer();
+                            this.renderEditorCheckboxes();
+                            bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
+                        });
+                    }
+                    list.append(item);
+                });
+            }
+            $('#globalCheckboxList').html(list);
             new bootstrap.Modal(document.getElementById('globalCheckboxModal')).show();
         },
 

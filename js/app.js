@@ -25,11 +25,13 @@
                 type: 'GET',
                 dataType: 'json',
                 success: (data) => {
-                    this.articles = data.articles || {};
-                    this.directories = data.directories || {};
-                    this.globalVariables = data.globalVariables || {};
-                    this.globalCheckboxes = data.globalCheckboxes || {};
-                    this.globalButtons = data.globalButtons || {};
+                    // PHP encodes empty {} as [] – convert arrays back to objects
+                    const toObj = (v) => (v && !Array.isArray(v)) ? v : {};
+                    this.articles = toObj(data.articles);
+                    this.directories = toObj(data.directories);
+                    this.globalVariables = toObj(data.globalVariables);
+                    this.globalCheckboxes = toObj(data.globalCheckboxes);
+                    this.globalButtons = toObj(data.globalButtons);
                     
                     // Normalize articles
                     Object.values(this.articles).forEach(article => {

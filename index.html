@@ -203,6 +203,10 @@
                         <label class="form-label">Content to insert when checked</label>
                         <textarea id="checkboxContent" class="form-control" rows="3" placeholder="e.g., sorry to be late"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Default value (inserted when <strong>not</strong> checked, can be empty)</label>
+                        <textarea id="checkboxDefaultValue" class="form-control" rows="2" placeholder="e.g., (no apology)"></textarea>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -243,6 +247,88 @@
                                 <textarea id="globalCheckboxContent" class="form-control" rows="3" placeholder="e.g., This is a disclaimer..."></textarea>
                             </div>
                             <button type="button" class="btn btn-primary w-100" id="saveGlobalCheckboxBtn">Save to Library</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Variable Library Modal -->
+    <div class="modal fade" id="globalVariableModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Variable Library</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#varLibraryTab" data-bs-toggle="tab">Add from Library</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#varSaveTab" data-bs-toggle="tab">Save to Library</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="varLibraryTab">
+                            <div id="globalVariableList"><!-- Available variables --></div>
+                        </div>
+                        <div class="tab-pane fade" id="varSaveTab">
+                            <div class="mb-3">
+                                <label class="form-label">Variable Name (without {{}})</label>
+                                <input type="text" id="globalVariableName" class="form-control" placeholder="e.g., username">
+                                <small class="text-muted">Use {{variableName}} in your content</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Label (for viewer)</label>
+                                <input type="text" id="globalVariableLabel" class="form-control" placeholder="e.g., User Name">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Placeholder</label>
+                                <input type="text" id="globalVariablePlaceholder" class="form-control" placeholder="e.g., Enter your name">
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" id="saveGlobalVariableBtn">Save to Library</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Button Library Modal -->
+    <div class="modal fade" id="globalButtonModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Button Library</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-tabs mb-3">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#btnLibraryTab" data-bs-toggle="tab">Add from Library</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#btnSaveTab" data-bs-toggle="tab">Save to Library</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="btnLibraryTab">
+                            <div id="globalButtonList"><!-- Available buttons --></div>
+                        </div>
+                        <div class="tab-pane fade" id="btnSaveTab">
+                            <div class="mb-3">
+                                <label class="form-label">Button Label</label>
+                                <input type="text" id="globalButtonLabel" class="form-control" placeholder="e.g., Copy Content">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">JavaScript Code</label>
+                                <textarea id="globalButtonCode" class="form-control" rows="6" placeholder="alert('Hello!');"></textarea>
+                                <small class="text-muted">Available: KB.getContentWithVariables(), alert(), console.log(), and all global JS APIs</small>
+                            </div>
+                            <button type="button" class="btn btn-primary w-100" id="saveGlobalButtonBtn">Save to Library</button>
                         </div>
                     </div>
                 </div>

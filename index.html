@@ -266,12 +266,21 @@
                         </div>
                         <div class="tab-pane fade" id="saveTab">
                             <div class="mb-3">
+                                <label class="form-label">Checkbox Name (without {{}})</label>
+                                <input type="text" id="globalCheckboxName" class="form-control" placeholder="e.g., apology">
+                                <small class="text-muted">Use {{checkboxName-content}} in your content</small>
+                            </div>
+                            <div class="mb-3">
                                 <label class="form-label">Checkbox Label</label>
                                 <input type="text" id="globalCheckboxLabel" class="form-control" placeholder="e.g., Add disclaimer">
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Content to insert when checked</label>
+                                <label class="form-label">Checked value (inserted when checked)</label>
                                 <textarea id="globalCheckboxContent" class="form-control" rows="3" placeholder="e.g., This is a disclaimer..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Default value (inserted when not checked, can be empty)</label>
+                                <textarea id="globalCheckboxDefaultValue" class="form-control" rows="2" placeholder="e.g.,"></textarea>
                             </div>
                             <button type="button" class="btn btn-primary w-100" id="saveGlobalCheckboxBtn">Save to Library</button>
                         </div>

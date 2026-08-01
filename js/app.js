@@ -8,6 +8,9 @@
         globalCheckboxes: {},
         globalButtons: {},
         globalVariables: {},
+        editingGlobalVariableId: null,
+        editingGlobalCheckboxId: null,
+        editingGlobalButtonId: null,
         currentArticle: null,
         editingItem: null,
         apiBase: './server/api.php',
@@ -37,6 +40,11 @@
                     Object.values(this.articles).forEach(article => {
                         article.variables = article.variables || [];
                         article.checkboxes = article.checkboxes || [];
+                        article.checkboxes = article.checkboxes.map(c => ({
+                            ...c,
+                            checkedValue: c.checkedValue !== undefined ? c.checkedValue : (c.content || ''),
+                            defaultValue: c.defaultValue !== undefined ? c.defaultValue : ''
+                        }));
                         article.buttons = article.buttons || [];
                     });
                     
@@ -351,6 +359,7 @@
         },
 
         openGlobalVariableModal: function() {
+            this.editingGlobalVariableId = null;
             const list = $('<div class="global-variable-list"></div>');
             const libraryItems = Object.entries(this.globalVariables);
 
@@ -361,21 +370,38 @@
                     const alreadyAdded = this.currentArticle && this.currentArticle.variables.some(a => a.name === v.name);
                     const transformLabel = this._transformLabel(v.transform, v.trim);
                     const item = $(`
-                        <div class="variable-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; background-color: ${alreadyAdded ? '#f0f0f0' : '#fff'}; border-radius: 4px;">
+                        <div class="variable-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; background-color: ${alreadyAdded ? '#f0f0f0' : '#fff'}; border-radius: 4px;">
                             <strong>{{${this.escape(v.name)}}}</strong>
                             <span style="margin-left: 8px; color: #666; font-size: 0.9em;">${this.escape(v.label)}</span>
                             ${transformLabel ? '<span style="margin-left: 8px; font-size: 0.8em; background:#e3f2fd; color:#1976d2; padding:1px 6px; border-radius:3px;">' + this.escape(transformLabel) + '</span>' : ''}
-                            ${alreadyAdded ? '<span style="color: #999; float: right;">✓ Already added</span>' : ''}
+                            <div style="margin-top: 8px;" class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm ${alreadyAdded ? 'btn-outline-danger' : 'btn-outline-primary'} toggle-variable-in-article-btn">${alreadyAdded ? 'Remove from article' : 'Add to article'}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary edit-global-variable-btn">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-global-variable-btn">Delete</button>
+                            </div>
                         </div>
                     `);
-                    if (!alreadyAdded && this.currentArticle) {
-                        item.on('click', () => {
+
+                    item.find('.toggle-variable-in-article-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        if (!this.currentArticle) return;
+                        if (alreadyAdded) {
+                            this.currentArticle.variables = this.currentArticle.variables.filter(a => a.name !== v.name);
+                        } else {
                             this.currentArticle.variables.push({ name: v.name, label: v.label, placeholder: v.placeholder || '', transform: v.transform || 'none', trim: !!v.trim, value: '' });
-                            this.saveToServer();
-                            this.renderEditorVariables();
-                            bootstrap.Modal.getInstance(document.getElementById('globalVariableModal')).hide();
-                        });
-                    }
+                        }
+                        this.saveToServer();
+                        this.renderEditorVariables();
+                        this.openGlobalVariableModal();
+                    });
+                    item.find('.edit-global-variable-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        this.editGlobalVariable(id);
+                    });
+                    item.find('.delete-global-variable-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        this.deleteGlobalVariable(id);
+                    });
                     list.append(item);
                 });
             }
@@ -385,7 +411,33 @@
             $('#globalVariablePlaceholder').val('');
             $('input[name="globalVariableTransform"][value="none"]').prop('checked', true);
             $('#globalVariableTrim').prop('checked', false);
+            $('#globalVariableName').prop('disabled', false);
+            $('#saveGlobalVariableBtn').text('Save to Library');
             new bootstrap.Modal(document.getElementById('globalVariableModal')).show();
+        },
+
+        editGlobalVariable: function(id) {
+            const variable = this.globalVariables[id];
+            if (!variable) return;
+            this.editingGlobalVariableId = id;
+            $('#globalVariableName').val(variable.name).prop('disabled', true);
+            $('#globalVariableLabel').val(variable.label || '');
+            $('#globalVariablePlaceholder').val(variable.placeholder || '');
+            $('input[name="globalVariableTransform"][value="' + (variable.transform || 'none') + '"]').prop('checked', true);
+            $('#globalVariableTrim').prop('checked', !!variable.trim);
+            $('#saveGlobalVariableBtn').text('Update Library Item');
+            const tabEl = document.querySelector('a[href="#varSaveTab"]');
+            if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+        },
+
+        deleteGlobalVariable: function(id) {
+            const variable = this.globalVariables[id];
+            if (!variable) return;
+            if (!confirm(`Delete variable "{{${variable.name}}}" from library?`)) return;
+            delete this.globalVariables[id];
+            this.saveToServer();
+            this.openGlobalVariableModal();
+            this.renderEditorVariables();
         },
 
         saveGlobalVariable: function() {
@@ -398,13 +450,23 @@
             if (!name) { alert('Variable name required'); return; }
             if (!label) { alert('Label required'); return; }
 
-            if (Object.values(this.globalVariables).some(v => v.name === name)) {
+            if (!this.editingGlobalVariableId && Object.values(this.globalVariables).some(v => v.name === name)) {
                 alert('A variable with this name already exists in the library');
                 return;
             }
 
-            const id = 'gvar_' + Date.now();
-            this.globalVariables[id] = { name, label, placeholder, transform, trim, createdAt: new Date().toISOString() };
+            const id = this.editingGlobalVariableId || ('gvar_' + Date.now());
+            const existing = this.globalVariables[id] || {};
+            this.globalVariables[id] = {
+                ...existing,
+                name,
+                label,
+                placeholder,
+                transform,
+                trim,
+                createdAt: existing.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
             this.saveToServer();
 
             $('#globalVariableName').val('');
@@ -412,8 +474,11 @@
             $('#globalVariablePlaceholder').val('');
             $('input[name="globalVariableTransform"][value="none"]').prop('checked', true);
             $('#globalVariableTrim').prop('checked', false);
+            $('#globalVariableName').prop('disabled', false);
+            this.editingGlobalVariableId = null;
+            $('#saveGlobalVariableBtn').text('Save to Library');
             bootstrap.Modal.getInstance(document.getElementById('globalVariableModal')).hide();
-            alert('Variable added to library!');
+            alert('Variable saved in library!');
         },
 
         renderViewerVariables: function() {
@@ -453,7 +518,7 @@
             this.editingItem = { type: 'checkbox', name: name };
             $('#checkboxName').val(name).prop('disabled', true);
             $('#checkboxLabel').val(checkbox.label);
-            $('#checkboxContent').val(checkbox.content);
+            $('#checkboxContent').val(checkbox.checkedValue !== undefined ? checkbox.checkedValue : (checkbox.content || ''));
             $('#checkboxDefaultValue').val(checkbox.defaultValue !== undefined ? checkbox.defaultValue : '');
             $('#checkboxModalLabel').text('Edit Checkbox');
             new bootstrap.Modal(document.getElementById('checkboxConfigModal')).show();
@@ -462,7 +527,7 @@
         saveCheckbox: function() {
             const name = $('#checkboxName').val().trim();
             const label = $('#checkboxLabel').val().trim();
-            const content = $('#checkboxContent').val();
+            const checkedValue = $('#checkboxContent').val();
             const defaultValue = $('#checkboxDefaultValue').val();
             
             if (!name) { alert('Checkbox name required'); return; }
@@ -473,7 +538,7 @@
             if (this.editingItem && this.editingItem.type === 'checkbox') {
                 const idx = this.currentArticle.checkboxes.findIndex(c => c.name === name);
                 if (idx >= 0) {
-                    this.currentArticle.checkboxes[idx] = { name, label, content, defaultValue, checked: this.currentArticle.checkboxes[idx].checked };
+                    this.currentArticle.checkboxes[idx] = { name, label, checkedValue, content: checkedValue, defaultValue, checked: this.currentArticle.checkboxes[idx].checked };
                 }
                 this.editingItem = null;
             } else {
@@ -481,7 +546,7 @@
                     alert('Checkbox already exists');
                     return;
                 }
-                this.currentArticle.checkboxes.push({ name, label, content, defaultValue, checked: false });
+                this.currentArticle.checkboxes.push({ name, label, checkedValue, content: checkedValue, defaultValue, checked: false });
             }
             
             this.saveToServer();
@@ -518,6 +583,7 @@
         },
 
         openGlobalCheckboxModal: function() {
+            this.editingGlobalCheckboxId = null;
             const list = $('<div class="global-checkbox-list"></div>');
             const libraryItems = Object.entries(this.globalCheckboxes);
             
@@ -526,42 +592,115 @@
             } else {
                 libraryItems.forEach(([id, cb]) => {
                     const alreadyAdded = this.currentArticle.checkboxes.some(c => c.name === cb.name);
+                    const checkedValue = cb.checkedValue !== undefined ? cb.checkedValue : (cb.content || '');
                     const item = $(`
-                        <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; ${alreadyAdded ? 'background-color: #f0f0f0;' : 'background-color: #fff;'} border-radius: 4px;">
-                            <strong>${this.escape(cb.label)}</strong>
-                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;">${this.escape((cb.content || '').substring(0, 50))}${(cb.content || '').length > 50 ? '...' : ''}</p>
-                            ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
+                        <div class="checkbox-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; ${alreadyAdded ? 'background-color: #f0f0f0;' : 'background-color: #fff;'} border-radius: 4px;">
+                            <strong>{{${this.escape(cb.name)}}}</strong> - <strong>${this.escape(cb.label)}</strong>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;"><strong>Checked:</strong> ${this.escape(checkedValue.substring(0, 50))}${checkedValue.length > 50 ? '...' : ''}</p>
+                            <p style="margin: 5px 0; font-size: 0.9em; color: #666;"><strong>Default:</strong> ${this.escape((cb.defaultValue || '').substring(0, 50))}${(cb.defaultValue || '').length > 50 ? '...' : ''}</p>
+                            <div style="margin-top: 8px;" class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm ${alreadyAdded ? 'btn-outline-danger' : 'btn-outline-primary'} toggle-checkbox-in-article-btn">${alreadyAdded ? 'Remove from article' : 'Add to article'}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary edit-global-checkbox-btn">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-global-checkbox-btn">Delete</button>
+                            </div>
                         </div>
                     `);
-                    if (!alreadyAdded) {
-                        item.on('click', () => {
-                            this.currentArticle.checkboxes.push({ name: cb.name, label: cb.label, content: cb.content || '', defaultValue: cb.defaultValue !== undefined ? cb.defaultValue : '', checked: false });
-                            this.saveToServer();
-                            this.renderEditorCheckboxes();
-                            bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
-                        });
-                    }
+                    item.find('.toggle-checkbox-in-article-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        if (alreadyAdded) {
+                            this.currentArticle.checkboxes = this.currentArticle.checkboxes.filter(c => c.name !== cb.name);
+                        } else {
+                            this.currentArticle.checkboxes.push({
+                                name: cb.name,
+                                label: cb.label,
+                                checkedValue,
+                                content: checkedValue,
+                                defaultValue: cb.defaultValue !== undefined ? cb.defaultValue : '',
+                                checked: false
+                            });
+                        }
+                        this.saveToServer();
+                        this.renderEditorCheckboxes();
+                        this.openGlobalCheckboxModal();
+                    });
+                    item.find('.edit-global-checkbox-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        this.editGlobalCheckbox(id);
+                    });
+                    item.find('.delete-global-checkbox-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        this.deleteGlobalCheckbox(id);
+                    });
                     list.append(item);
                 });
             }
             $('#globalCheckboxList').html(list);
+            $('#globalCheckboxName').val('').prop('disabled', false);
+            $('#globalCheckboxLabel').val('');
+            $('#globalCheckboxContent').val('');
+            $('#globalCheckboxDefaultValue').val('');
+            $('#saveGlobalCheckboxBtn').text('Save to Library');
             new bootstrap.Modal(document.getElementById('globalCheckboxModal')).show();
         },
 
+        editGlobalCheckbox: function(id) {
+            const checkbox = this.globalCheckboxes[id];
+            if (!checkbox) return;
+            this.editingGlobalCheckboxId = id;
+            $('#globalCheckboxName').val(checkbox.name || '').prop('disabled', true);
+            $('#globalCheckboxLabel').val(checkbox.label || '');
+            $('#globalCheckboxContent').val(checkbox.checkedValue !== undefined ? checkbox.checkedValue : (checkbox.content || ''));
+            $('#globalCheckboxDefaultValue').val(checkbox.defaultValue || '');
+            $('#saveGlobalCheckboxBtn').text('Update Library Item');
+            const tabEl = document.querySelector('a[href="#saveTab"]');
+            if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+        },
+
+        deleteGlobalCheckbox: function(id) {
+            const checkbox = this.globalCheckboxes[id];
+            if (!checkbox) return;
+            if (!confirm(`Delete checkbox "{{${checkbox.name}}-content}" from library?`)) return;
+            delete this.globalCheckboxes[id];
+            this.saveToServer();
+            this.openGlobalCheckboxModal();
+            this.renderEditorCheckboxes();
+        },
+
         saveGlobalCheckbox: function() {
+            const name = $('#globalCheckboxName').val().trim();
             const label = $('#globalCheckboxLabel').val().trim();
-            const content = $('#globalCheckboxContent').val();
+            const checkedValue = $('#globalCheckboxContent').val();
+            const defaultValue = $('#globalCheckboxDefaultValue').val();
             
+            if (!name) { alert('Checkbox name required'); return; }
             if (!label) { alert('Label required'); return; }
+            if (!this.editingGlobalCheckboxId && Object.values(this.globalCheckboxes).some(cb => cb.name === name)) {
+                alert('A checkbox with this name already exists in the library');
+                return;
+            }
             
-            const id = 'gchk_' + Date.now();
-            this.globalCheckboxes[id] = { name: id, label, content, defaultValue: '', createdAt: new Date().toISOString() };
+            const id = this.editingGlobalCheckboxId || ('gchk_' + Date.now());
+            const existing = this.globalCheckboxes[id] || {};
+            this.globalCheckboxes[id] = {
+                ...existing,
+                name,
+                label,
+                checkedValue,
+                content: checkedValue,
+                defaultValue: defaultValue !== undefined ? defaultValue : '',
+                createdAt: existing.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
             this.saveToServer();
             
+            $('#globalCheckboxName').val('').prop('disabled', false);
             $('#globalCheckboxLabel').val('');
             $('#globalCheckboxContent').val('');
+            $('#globalCheckboxDefaultValue').val('');
+            this.editingGlobalCheckboxId = null;
+            $('#saveGlobalCheckboxBtn').text('Save to Library');
             bootstrap.Modal.getInstance(document.getElementById('globalCheckboxModal')).hide();
-            alert('Checkbox added to library!');
+            alert('Checkbox saved in library!');
         },
 
         renderViewerCheckboxes: function() {
@@ -611,7 +750,8 @@
             this.currentArticle.checkboxes.forEach(c => {
                 const regex = new RegExp('{{' + c.name + '-content}}', 'g');
                 if (c.checked) {
-                    content = content.replace(regex, c.content);
+                    const checkedValue = c.checkedValue !== undefined ? c.checkedValue : (c.content || '');
+                    content = content.replace(regex, checkedValue);
                 } else {
                     content = content.replace(regex, c.defaultValue !== undefined ? c.defaultValue : '');
                 }
@@ -714,6 +854,7 @@
         },
 
         openGlobalButtonModal: function() {
+            this.editingGlobalButtonId = null;
             const list = $('<div class="global-button-list"></div>');
             const libraryItems = Object.entries(this.globalButtons);
 
@@ -723,27 +864,66 @@
                 libraryItems.forEach(([id, btn]) => {
                     const alreadyAdded = this.currentArticle && this.currentArticle.buttons.some(b => b.globalId === id);
                     const item = $(`
-                        <div class="button-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; cursor: ${alreadyAdded ? 'default' : 'pointer'}; background-color: ${alreadyAdded ? '#f0f0f0' : '#fff'}; border-radius: 4px;">
+                        <div class="button-item" style="padding: 10px; border: 1px solid #ddd; margin: 5px 0; background-color: ${alreadyAdded ? '#f0f0f0' : '#fff'}; border-radius: 4px;">
                             <strong>${this.escape(btn.label)}</strong>
                             <p style="margin: 5px 0; font-size: 0.9em; color: #666; font-family: monospace;">${this.escape(btn.code.substring(0, 60))}${btn.code.length > 60 ? '...' : ''}</p>
-                            ${alreadyAdded ? '<span style="color: #999;">✓ Already added</span>' : ''}
+                            <div style="margin-top: 8px;" class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm ${alreadyAdded ? 'btn-outline-danger' : 'btn-outline-primary'} toggle-button-in-article-btn">${alreadyAdded ? 'Remove from article' : 'Add to article'}</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary edit-global-button-btn">Edit</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-global-button-btn">Delete</button>
+                            </div>
                         </div>
                     `);
-                    if (!alreadyAdded && this.currentArticle) {
-                        item.on('click', () => {
+
+                    item.find('.toggle-button-in-article-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        if (!this.currentArticle) return;
+                        if (alreadyAdded) {
+                            this.currentArticle.buttons = this.currentArticle.buttons.filter(b => b.globalId !== id);
+                        } else {
                             this.currentArticle.buttons.push({ id: 'btn_' + Date.now(), globalId: id, label: btn.label, code: btn.code });
-                            this.saveToServer();
-                            this.renderEditorButtons();
-                            bootstrap.Modal.getInstance(document.getElementById('globalButtonModal')).hide();
-                        });
-                    }
+                        }
+                        this.saveToServer();
+                        this.renderEditorButtons();
+                        this.openGlobalButtonModal();
+                    });
+                    item.find('.edit-global-button-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        this.editGlobalButton(id);
+                    });
+                    item.find('.delete-global-button-btn').on('click', (e) => {
+                        e.stopPropagation();
+                        this.deleteGlobalButton(id);
+                    });
                     list.append(item);
                 });
             }
             $('#globalButtonList').html(list);
             $('#globalButtonLabel').val('');
             $('#globalButtonCode').val('');
+            $('#saveGlobalButtonBtn').text('Save to Library');
             new bootstrap.Modal(document.getElementById('globalButtonModal')).show();
+        },
+
+        editGlobalButton: function(id) {
+            const button = this.globalButtons[id];
+            if (!button) return;
+            this.editingGlobalButtonId = id;
+            $('#globalButtonLabel').val(button.label || '');
+            $('#globalButtonCode').val(button.code || '');
+            $('#saveGlobalButtonBtn').text('Update Library Item');
+            const tabEl = document.querySelector('a[href="#btnSaveTab"]');
+            if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+        },
+
+        deleteGlobalButton: function(id) {
+            const button = this.globalButtons[id];
+            if (!button) return;
+            if (!confirm(`Delete button "${button.label}" from library?`)) return;
+            delete this.globalButtons[id];
+            this.saveToServer();
+            this.openGlobalButtonModal();
+            this.renderEditorButtons();
         },
 
         saveGlobalButton: function() {
@@ -755,14 +935,23 @@
             try { new Function(code); }
             catch (e) { alert('Invalid JS: ' + e.message); return; }
 
-            const id = 'gbtn_' + Date.now();
-            this.globalButtons[id] = { label, code, createdAt: new Date().toISOString() };
+            const id = this.editingGlobalButtonId || ('gbtn_' + Date.now());
+            const existing = this.globalButtons[id] || {};
+            this.globalButtons[id] = {
+                ...existing,
+                label,
+                code,
+                createdAt: existing.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
             this.saveToServer();
 
             $('#globalButtonLabel').val('');
             $('#globalButtonCode').val('');
+            this.editingGlobalButtonId = null;
+            $('#saveGlobalButtonBtn').text('Save to Library');
             bootstrap.Modal.getInstance(document.getElementById('globalButtonModal')).hide();
-            alert('Button added to library!');
+            alert('Button saved in library!');
         },
 
         renderViewerButtons: function() {

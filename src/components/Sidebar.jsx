@@ -2,11 +2,10 @@ import React, { useEffect, useMemo } from 'react';
 import { useKBStore } from '../store/kbStore';
 import { ChevronRight, ChevronDown, FileText, Folder, Trash2 } from 'lucide-react';
 
-const TreeNode = ({ item, isDirectory, expanded, onToggle, onSelect, onDelete, isActive, children }) => {
+const TreeNode = ({ item, isDirectory, expanded, onToggle, onExpand, onSelect, onDelete, isActive, children }) => {
   return (
     <div className="select-none">
       <div
-        onClick={() => (isDirectory ? onToggle() : onSelect(item))}
         className={`flex items-center gap-1 p-2 rounded cursor-pointer group ${
           isActive ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'
         }`}
@@ -26,7 +25,10 @@ const TreeNode = ({ item, isDirectory, expanded, onToggle, onSelect, onDelete, i
         
         {isDirectory ? <Folder size={16} /> : <FileText size={16} />}
         
-        <span className={`flex-1 text-sm ${isActive ? 'font-medium' : 'text-gray-700 hover:text-gray-900'}`}>
+        <span
+          onClick={() => (isDirectory ? onExpand() : onSelect(item))}
+          className={`flex-1 text-sm ${isActive ? 'font-medium' : 'text-gray-700 hover:text-gray-900'}`}
+        >
           {item.title || item.name}
         </span>
         
@@ -101,6 +103,15 @@ function Sidebar() {
     setExpandedDirs(newExpanded);
   };
 
+  const expandDir = (id) => {
+    setExpandedDirs(previous => {
+      if (previous.has(id)) return previous;
+      const next = new Set(previous);
+      next.add(id);
+      return next;
+    });
+  };
+
   const handleDelete = (id) => {
     if (confirm('Are you sure?')) {
       deleteArticle(id);
@@ -116,6 +127,7 @@ function Sidebar() {
         isDirectory={isDirectory}
         expanded={expandedDirs.has(item.id)}
         onToggle={() => toggleDir(item.id)}
+        onExpand={() => expandDir(item.id)}
         onSelect={setCurrentArticle}
         onDelete={handleDelete}
         isActive={!isDirectory && currentArticle?.id === item.id}
